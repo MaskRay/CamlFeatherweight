@@ -5,6 +5,7 @@ type long_ident =
   | Ldot of long_ident * string
 
 type constant =
+  | Const_char of char
   | Const_int of int
   | Const_float of float
   | Const_string of string
@@ -34,7 +35,7 @@ and typ_desc =
 and typ_link =
   | Tnolink
   | Tlink of typ
-and type_constr = { ty_stamp: int; ty_abbr: type_abbrev }
+and type_constr = { ty_stamp: int; mutable ty_abbr: type_abbrev }
 and type_abbrev =
   | Tnotabbrev
   | Tabbrev of typ list * typ
@@ -52,7 +53,12 @@ and type_components =
 
 (* e.g. false, None *)
 and constr_desc =
-  { cs_arg: typ; cs_res: typ; cs_tag: int * int }
+  { cs_arg: typ; cs_res: typ; cs_tag: int * int; cs_kind: constr_kind }
+
+and constr_kind =
+  | Constr_constant
+  | Constr_regular
+  | Constr_superfluous of int
 
 type expression = { e_desc: expression_desc; e_loc: location; mutable e_typ: typ }
 and expression_desc =
@@ -136,6 +142,8 @@ let rec string_of_long_ident = function
   | Ldot (l,id) -> string_of_long_ident l ^ "." ^ id
 
 let dump_constant = function
+  | Const_char c ->
+      Printf.printf "Const_char %s\n" (Char.escaped c)
   | Const_int i ->
       Printf.printf "Const_int %d\n" i
   | Const_float f ->

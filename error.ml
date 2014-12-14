@@ -1,5 +1,5 @@
 open Syntax
-open Printer
+open Type
 
 type lexical_error =
   | Illegal_character of char
@@ -12,59 +12,141 @@ exception Lexical_error of lexical_error * location
 
 let fatal_error s = failwith s
 
-let nonlinear_pattern_error pat v =
+(* output *)
+
+let output_loc oc (l,m) =
+  Printf.fprintf oc "location %d %d\n" l m
+
+let output_global oc tc =
+  output_string oc (string_of_long_ident tc.qualid)
+
+let output_long_ident oc id =
+  output_string oc (string_of_long_ident id)
+
+let output_constr = output_global
+let output_type_constr = output_global
+
+let output_typ oc ty =
+  let rec go pri ty =
+    let ty = type_repr ty in
+    begin match ty.typ_desc with
+    | Tarrow(ty1,ty2) ->
+        if pri >= 1 then
+          output_string oc "(";
+        go 1 ty1;
+        output_string oc " -> ";
+        go 0 ty2;
+        if pri >= 1 then
+          output_string oc ")"
+    | Tproduct tys ->
+        if pri >= 2 then
+          output_string oc "(";
+        gos 2 " * " tys;
+        if pri >= 2 then
+          output_string oc ")"
+    | Tconstr(c,args) ->
+        begin match args with
+        | [] -> ()
+        | [ty] ->
+            go 2 ty;
+            output_string oc " "
+        | tys ->
+          output_string oc "(";
+          gos 0 ", " tys;
+          output_string oc ")"
+        end
+    | Tvar _ ->
+        output_string oc "'a"; (* TODO *)
+    end
+  and gos pri sep = function
+    | [] -> ()
+    | [ty] -> go pri ty
+    | ty::tys ->
+        go pri ty;
+        output_string oc sep;
+        gos pri sep tys
+  in
+  go 0 ty
+
+let nonlinear_pattern_err pat name =
   Printf.eprintf "%aThe variable %s is bound several times in this pattern.\n"
     output_loc pat.p_loc
     name;
   raise Toplevel
 
-let constant_constr_error loc c =
+let constant_constr_err loc c =
   Printf.eprintf "%aThe constant constructor %a cannot accept an argument.\n"
     output_loc loc
-    output_constr cstr;
+    output_constr c;
   raise Toplevel
 
-let nonconstant_constr_error loc c =
+let duplicate_param_in_type_decl_err loc =
+  Printf.eprintf "%aRepeated type parameter in type declaration.\n"
+    output_loc loc;
+  raise Toplevel
+
+let nonconstant_constr_err loc c =
   Printf.eprintf "%aThe constructor %a requires an argument.\n"
     output_loc loc
-    output_constr cstr;
+    output_constr c;
   raise Toplevel
 
-let ill_shaped_match_error e =
+let ill_shaped_match_err e =
   Printf.eprintf "%aThis curried matching contains cases of different lengths.\n"
     output_loc e.e_loc;
   raise Toplevel
 
-let partial_apply_warning loc = prerr_endline "partial"
+let partial_apply_warn loc = prerr_endline "partial"
 
-let not_unit_type_warning e ty =
+let not_unit_type_warn e actual_ty =
   Printf.eprintf "%aWarning: this expression has type %a,\n\
            but is used with type unit.\n"
     output_loc e.e_loc
-    output_one_type actual_ty;
+    output_typ actual_ty;
   flush stderr
 
-let expr_wrong_type_error expr expect_ty actual_ty =
+let expr_wrong_type_err e expect_ty actual_ty =
   Printf.eprintf "%aThis expression has type %a,\n\
            but is used with type %a.\n"
-    output_loc exp.e_loc
-    output_type actual_ty
-    output_type expect_ty;
+    output_loc e.e_loc
+    output_typ actual_ty
+    output_typ expect_ty;
   raise Toplevel
 
-let pat_wrong_type_error pat expect_ty actual_ty =
+let pat_wrong_type_err pat expect_ty actual_ty =
   Printf.eprintf "%aThis pattern matches values of type %a,\n\
            but should match values of type %a.\n"
     output_loc pat.p_loc
-    output_one_type actual_ty
-    output_type expect_ty;
+    output_typ actual_ty
+    output_typ expect_ty;
   raise Toplevel
 
-let type_arity_error loc c params =
+let type_arity_err loc c params =
   Printf.eprintf "%aThe type constructor %a expects %d argument(s),\n\
            but is here given %d argument(s).\n"
     output_loc loc
-    output_type_constr cstr
-    cstr.info.ty_arity
-    (List.length params);
+    output_type_constr c
+    c.info.ty_arity (List.length params);
+  raise Toplevel
+
+let application_of_non_function_err e ty =
+  begin try
+    filter_arrow ty |> ignore;
+    Printf.eprintf "%aThis function is applied to too many arguments.\n"
+      output_loc e.e_loc
+  with Unify ->
+    Printf.eprintf "%aThis expression is not a function, it cannot be applied.\n"
+      output_loc e.e_loc
+  end;
+  raise Toplevel
+
+let unbound_type_constr_err loc id =
+  Printf.eprintf "%aThe type constructor %a is unbound.\n"
+    output_loc loc
+    output_long_ident id;
+  raise Toplevel
+
+let unbound_type_var_err v te =
+  Printf.eprintf "%aThe type variable %s is unbound.\n"
+    output_loc te.te_loc v;
   raise Toplevel

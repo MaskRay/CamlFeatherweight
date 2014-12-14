@@ -119,4 +119,4 @@ let () =
   if !files = [] then
     channel stdin
   else
-    List.rev !files |> List.iter (file !stage)
+    List.rev !files |> List.iter file

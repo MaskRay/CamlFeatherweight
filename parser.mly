@@ -1,6 +1,6 @@
 %{
 open Syntax
-open Builtins
+open Builtin
 
 let get_loc () = Parsing.symbol_start (), Parsing.symbol_end ()
 
@@ -193,7 +193,7 @@ type_decl_list:
   | type_decl AND type_decl_list { $1::$3 }
 
 type_decl:
-  | type_var IDENT type_def { $2, $1, $3 }
+  | type_vars IDENT type_def { $2, $1, $3 }
 
 type_vars:
   | LPAREN type_var_list RPAREN { $2 }

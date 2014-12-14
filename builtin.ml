@@ -1,12 +1,5 @@
 open Syntax
 
-let init_stamp = ref 0
-
-let new_type_stamp () =
-  let r = !init_stamp in
-  incr init_stamp;
-  r
-
 (* type_constr global *)
 
 let f id =
@@ -31,6 +24,8 @@ let type_int    = f type_constr_int
 let type_float  = f type_constr_float
 let type_string = f type_constr_string
 let type_option = f type_constr_option
+
+let f desc t = { typ_desc=Tconstr(desc, [t]); typ_level=notgeneric }
 let type_list   = f type_constr_list
 let type_array  = f type_constr_array
 
@@ -50,6 +45,7 @@ let constr_void =
   { cs_res={ typ_desc=Tconstr(type_constr_unit, []); typ_level=notgeneric }
   ; cs_arg=type_unit
   ; cs_tag=1,0
+  ; cs_kind=Constr_constant
   }
 
 let constr_false =
@@ -57,6 +53,7 @@ let constr_false =
   { cs_res={ typ_desc=Tconstr(type_constr_bool, []); typ_level=notgeneric }
   ; cs_arg=type_unit
   ; cs_tag=2,0
+  ; cs_kind=Constr_constant
   }
 
 let constr_true =
@@ -64,6 +61,7 @@ let constr_true =
   { cs_res={ typ_desc=Tconstr(type_constr_bool, []); typ_level=notgeneric }
   ; cs_arg=type_unit
   ; cs_tag=2,1
+  ; cs_kind=Constr_constant
   }
 
 let constr_nil =
@@ -72,6 +70,7 @@ let constr_nil =
   { cs_res={ typ_desc=Tconstr(type_constr_list, [arg]); typ_level=notgeneric }
   ; cs_arg=type_unit
   ; cs_tag=2,0
+  ; cs_kind=Constr_constant
   }
 
 let constr_cons =
@@ -81,6 +80,7 @@ let constr_cons =
   { cs_res=arg2
   ; cs_arg={ typ_desc=Tproduct [arg1; arg2]; typ_level=generic }
   ; cs_tag=2,1
+  ; cs_kind=Constr_superfluous 2
   }
 
 let constr_none =
@@ -89,6 +89,7 @@ let constr_none =
   { cs_res={ typ_desc=Tconstr(type_constr_option, [arg]); typ_level=generic }
   ; cs_arg=type_unit
   ; cs_tag=2,0
+  ; cs_kind=Constr_constant
   }
 
 let constr_some =
@@ -97,4 +98,5 @@ let constr_some =
   { cs_res={ typ_desc=Tconstr(type_constr_option, [arg]); typ_level=generic }
   ; cs_arg=arg
   ; cs_tag=2,1
+  ; cs_kind=Constr_regular
   }
