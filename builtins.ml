@@ -2,12 +2,15 @@ open Syntax
 
 let init_stamp = ref 0
 
+let new_type_stamp () =
+  let r = !init_stamp in
+  incr init_stamp;
+  r
+
 (* type_constr global *)
 
 let f id =
-  let r = { qualid=Lident id; info={ ty_stamp= !init_stamp; ty_abbr=Tnotabbrev } } in
-  incr init_stamp;
-  r
+  { qualid=Lident id; info={ ty_stamp=new_type_stamp(); ty_abbr=Tnotabbrev } }
 let type_constr_unit   = f "unit"
 let type_constr_bool   = f "bool"
 let type_constr_char   = f "char"

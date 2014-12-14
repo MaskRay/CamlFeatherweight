@@ -2,7 +2,9 @@ open Error
 open Parser
 open Lexer
 open Syntax
-open Typing
+open Implementation
+
+let stage = ref 2
 
 let dbg_lexer lexbuf =
   match Lexer.main lexbuf with
@@ -67,24 +69,9 @@ let dbg_lexer lexbuf =
   | TYPE -> "type"
   | WITH -> "with"
 
-let compile_implementation impls =
-  List.iter (fun impl ->
-    match impl.im_desc with
-    | Pimpl_expr _ ->
-        print_endline "Expr";
-        ()
-    | Pimpl_typedef _ ->
-        reset_te_vars
-        print_endline "Typedef";
-        ()
-    | Pimpl_letdef _ ->
-        print_endline "Letdef";
-        ()
-  ) impls
-
-let channel stage ic =
+let channel ic =
   let lexbuf = Lexing.from_channel ic in
-  match stage with
+  match !stage with
   | 0 ->
       let rec go () =
         let s = dbg_lexer lexbuf in
@@ -118,17 +105,18 @@ let channel stage ic =
         (*prerr_endline "Syntax error";*)
         (*close_in ic*)
 
-let file stage f =
-  channel stage (if f = "-" then stdin else open_in f)
+let file f =
+  channel (if f = "-" then stdin else open_in f)
 
 let () =
-  let stage = ref 2 in
   let files = ref [] in
   Arg.parse
-    [("-d", Arg.Int(fun i -> stage := i), "stage")]
+    [ "-d", Arg.Int(fun i -> stage := i), "stage"
+    ; "-v", Arg.Unit(fun () -> Implementation.verbose := true), "verbose"
+    ]
     (fun s -> files := s :: !files)
     ("compiler");
   if !files = [] then
-    channel !stage stdin
+    channel stdin
   else
     List.rev !files |> List.iter (file !stage)

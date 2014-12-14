@@ -9,6 +9,14 @@ type constant =
   | Const_float of float
   | Const_string of string
 
+(* primitive *)
+
+type primitive =
+  | Padd
+  | Psub
+  | Pmul
+  | Pdiv
+
 (* global *)
 
 type 'a global = { qualid: long_ident; info: 'a }
@@ -101,9 +109,25 @@ and impl_desc =
   | Pimpl_typedef of (string * string list * type_decl) list
   | Pimpl_letdef of bool * (pattern * expression) list
 
+(* global value *)
+
+type value_desc = { v_typ: typ; v_prim: prim_desc }
+and prim_desc =
+  | Not_prim
+  | Prim of int * primitive
+
 (* instances *)
 
 let no_type = {typ_desc=Tproduct []; typ_level=0}
+
+(* type stamp *)
+
+let init_stamp = ref 0
+
+let new_type_stamp () =
+  let r = !init_stamp in
+  incr init_stamp;
+  r
 
 (* dump *)
 

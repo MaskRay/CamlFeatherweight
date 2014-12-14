@@ -1,4 +1,5 @@
 open Syntax
+open Printer
 
 type lexical_error =
   | Illegal_character of char
@@ -8,13 +9,6 @@ type lexical_error =
 
 exception Toplevel
 exception Lexical_error of lexical_error * location
-
-let output_loc oc (l,m) =
-  Printf.fprintf oc "location %d %d\n" l m
-
-let output_typ oc ty = ()
-
-let output_constr oc c = ()
 
 let fatal_error s = failwith s
 

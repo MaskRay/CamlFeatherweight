@@ -11,6 +11,8 @@ exception Unify
 exception Recursive_abbrev
 
 let cur_level = ref 0
+let push_level () = incr cur_level
+let pop_level () = decr cur_level
 
 let same_type_constr c1 c2 =
   c1.info.ty_stamp = c2.info_ty_stamp
@@ -26,6 +28,27 @@ let rec same_base_type ty1 ty2 =
       List.for_all2 same_base_type args1 args2
   | _, _ ->
       false
+
+let should_value_restrict expr =
+  let rec go expr =
+    match expr.e_desc with
+    | Pexpr_array es -> List.for_all go es
+    | Pexpr_constant _ -> true
+    | Pexpr_constr(c,arg) ->
+        begin match arg with
+        | None -> true
+        | Some arg -> go arg
+        end
+    | Pexpr_function _ -> true
+    | Pexpr_ident _ -> true
+    | Pexpr_if(cond,ifso,ifnot) -> go cond && go ifso && go ifnot
+    | Pexpr_let(isrec,binds,body) -> false (* TODO *)
+    | Pexpr_match _ -> false (* TODO *)
+    | Pexpr_sequence(e1,e2) -> go e1 && go e2
+    | Pexpr_tuple es -> List.for_all go es
+    | _ -> false
+  in
+  go expr
 
 (* new *)
 
@@ -463,7 +486,7 @@ and typing_let env isrec pes =
     typing_expect (if isrec then env' else env) e ty
   ) pes tys;
   desc cur_level;
-  let gens = List.map (fun (p,e) -> is_nonexpansive e) pes in
+  let gens = List.map (fun (p,e) -> should_value_restrict e) pes in
   List.iter2 (fun gen ty ->
     if gen then
       generalize ty
