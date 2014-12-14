@@ -53,8 +53,9 @@ let output_typ oc ty =
         | tys ->
           output_string oc "(";
           gos 0 ", " tys;
-          output_string oc ")"
-        end
+          output_string oc ") "
+        end;
+        output_global oc c
     | Tvar _ ->
         output_string oc "'a"; (* TODO *)
     end

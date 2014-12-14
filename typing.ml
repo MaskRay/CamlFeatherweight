@@ -62,11 +62,11 @@ let type_of_type_expression strict te =
 (* unify *)
 
 let rec unify ty1 ty2 =
+  let ty1 = type_repr ty1
+  and ty2 = type_repr ty2 in
   if ty1 == ty2 then
     ()
   else
-    let ty1 = type_repr ty1
-    and ty2 = type_repr ty2 in
     match ty1.typ_desc, ty2.typ_desc with
     | Tvar link1, Tvar link2 ->
         if ty1.typ_level < ty2.typ_level then (
@@ -77,9 +77,9 @@ let rec unify ty1 ty2 =
           link1 := Tlink ty2
         )
     | Tvar link, _ when not (check_occur ty1.typ_level ty1 ty2) ->
-        link := Tlink ty1
-    | _, Tvar link when not (check_occur ty2.typ_level ty2 ty1) ->
         link := Tlink ty2
+    | _, Tvar link when not (check_occur ty2.typ_level ty2 ty1) ->
+        link := Tlink ty1
     | Tarrow(t1x,t1y), Tarrow(t2x,t2y) ->
         unify t1x t2x;
         unify t1y t2y
@@ -155,10 +155,14 @@ let rec typing_expr env expr =
             ty2
         end
       end
+  | Pexpr_constraint(e,te) ->
+      let ty = type_of_type_expression false te in
+      typing_expect env e ty;
+      ty
   | Pexpr_function mat ->
       begin match mat with
       | [] -> failwith "empty matching"
-      | (ps,e)::mat ->
+      | (ps,e)::_ as mat ->
           let arity = List.length ps in
           let ty_args = List.map (fun _ -> new_type_var()) ps in
           let ty_res = new_type_var() in

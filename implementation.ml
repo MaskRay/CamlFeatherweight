@@ -6,7 +6,7 @@ open Syntax
 open Type
 open Typing
 
-let verbose = ref false
+let verbose = ref true (* FIXME *)
 
 let typing_impl_expr loc e =
   push_level();

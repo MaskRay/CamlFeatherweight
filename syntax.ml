@@ -13,10 +13,19 @@ type constant =
 (* primitive *)
 
 type primitive =
-  | Padd
-  | Psub
-  | Pmul
-  | Pdiv
+  | Paddint
+  | Psubint
+  | Pmulint
+  | Pdivint
+  | Pmodint
+  | Pfloat of float_primitive
+
+and float_primitive =
+  | Paddfloat
+  | Psubfloat
+  | Pmulfloat
+  | Pdivfloat
+  | Pmodfloat
 
 (* global *)
 
@@ -71,7 +80,6 @@ and expression_desc =
   | Pexpr_ident of long_ident
   | Pexpr_if of expression * expression * expression option
   | Pexpr_let of bool * (pattern * expression) list * expression
-  | Pexpr_match of expression * (pattern * expression) list
   | Pexpr_sequence of expression * expression
   | Pexpr_tuple of expression list
 
@@ -214,14 +222,6 @@ and dump_expression d expr =
           List.iter (dump_pattern (d+2)) ps;
           go (d+2) e
         ) alts
-    | Pexpr_match(e,pes) ->
-        print_endline "Match";
-        go (d+1) e;
-        List.iter (fun (p,e) ->
-          Printf.printf "%*sCase\n" (2*d+2) "";
-          dump_pattern (d+2) p;
-          go (d+2) e
-        ) pes
     | Pexpr_ident id ->
         Printf.printf "Ident %s\n" (string_of_long_ident id)
     | Pexpr_if(cond,ifso,ifnot) ->

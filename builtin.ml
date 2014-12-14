@@ -1,4 +1,5 @@
 open Syntax
+open Global
 
 (* type_constr global *)
 
@@ -100,3 +101,78 @@ let constr_some =
   ; cs_tag=2,1
   ; cs_kind=Constr_regular
   }
+
+(* global type_desc  *)
+
+let () =
+  let f info =
+    { qualid=info.ty_constr.qualid; info=info }
+  in
+  List.iter add_global_type
+  [ f { ty_constr=type_constr_unit
+      ; ty_arity=0
+      ; ty_desc=Variant_type[constr_void]
+      }
+  ; f { ty_constr=type_constr_bool
+      ; ty_arity=0
+      ; ty_desc=Variant_type[constr_false; constr_true]
+      }
+  ; f { ty_constr=type_constr_char
+      ; ty_arity=0
+      ; ty_desc=Abstract_type
+      }
+  ; f { ty_constr=type_constr_int
+      ; ty_arity=0
+      ; ty_desc=Abstract_type
+      }
+  ; f { ty_constr=type_constr_float
+      ; ty_arity=0
+      ; ty_desc=Abstract_type
+      }
+  ; f { ty_constr=type_constr_string
+      ; ty_arity=0
+      ; ty_desc=Abstract_type
+      }
+  ; f { ty_constr=type_constr_option
+      ; ty_arity=1
+      ; ty_desc=Variant_type[constr_none; constr_some]
+      }
+  ; f { ty_constr=type_constr_list
+      ; ty_arity=1
+      ; ty_desc=Variant_type[constr_nil; constr_cons]
+      }
+  ; f { ty_constr=type_constr_array
+      ; ty_arity=1
+      ; ty_desc=Abstract_type
+      }
+  ]
+
+let () =
+  let intop (op,p) =
+    add_global_value
+    { qualid=Lident op
+    ; info={ v_typ=type_arrow type_int (type_arrow type_int type_int)
+          ; v_prim=Prim(2, p)
+          }
+    }
+  in
+  let floatop (op,p) =
+    add_global_value
+    { qualid=Lident op
+    ; info={ v_typ=type_arrow type_float (type_arrow type_float type_float)
+          ; v_prim=Prim(2, p)
+          }
+    }
+  in
+  List.iter intop
+  [ "+", Paddint
+  ; "-", Psubint
+  ; "*", Pmulint
+  ; "/", Pdivint
+  ];
+  List.iter floatop
+  [ "+.", Pfloat Paddfloat
+  ; "-.", Pfloat Psubfloat
+  ; "*.", Pfloat Pmulfloat
+  ; "/.", Pfloat Pdivfloat
+  ];

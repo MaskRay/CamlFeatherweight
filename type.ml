@@ -44,7 +44,6 @@ let should_value_restrict expr =
         | Some ifnot -> go ifso && go ifnot
         end
     | Pexpr_let(isrec,binds,body) -> false (* TODO *)
-    | Pexpr_match _ -> false (* TODO *)
     | Pexpr_sequence(e1,e2) -> go e1 && go e2
     | _ -> false
   in

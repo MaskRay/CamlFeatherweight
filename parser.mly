@@ -262,8 +262,13 @@ expr:
   | IF expr THEN expr { make_expr(Pexpr_if($2, $4, None)) }
   | LET rec_flag let_binding_list IN seq_expr { make_expr(Pexpr_let($2, $3, $5)) }
   | FUN fun_case { make_expr(Pexpr_function $2) }
-  | FUNCTION opt_bar match1_case_list { make_expr (Pexpr_function (List.map (fun (p,e) -> [p],e) $3)) }
-  | MATCH expr WITH opt_bar match1_case_list { make_expr(Pexpr_match($2, $5)) }
+  | FUNCTION opt_bar match1_case_list {
+      make_expr (Pexpr_function (
+        List.map (fun (p,e) -> [p],e) $3)) }
+  | MATCH expr WITH opt_bar match1_case_list {
+      make_expr (Pexpr_apply(
+        make_expr (Pexpr_function (
+          List.map (fun (p,e) -> [p],e) $5)), [$2])) }
 
 simple_expr:
   | INT { make_expr(Pexpr_constant(Const_int $1)) }
