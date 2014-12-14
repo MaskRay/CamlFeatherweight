@@ -79,7 +79,13 @@ rule main = parse
         raise (Lexical_error(Unterminated_comment, (start_pos, end_pos)))
       end;
       main lexbuf }
-  | "'" { CHAR (char lexbuf) }
+  | "'" [^ '\\' '\'' '\010' '\013'] "'"
+      { CHAR(Lexing.lexeme_char lexbuf 1) }
+  | "'\\" ['\\' '\'' '"' 'n' 't' 'b' 'r' ' '] "'"
+      { CHAR(char_for_backslash (Lexing.lexeme_char lexbuf 2)) }
+  | "'\\" ['0'-'9'] ['0'-'9'] ['0'-'9'] "'"
+      { CHAR(char_for_decimal_code lexbuf 2) }
+  | "'" { QUOTE }
   | '"' {
       reset_string_buf ();
       let start_pos = Lexing.lexeme_start lexbuf in
@@ -100,7 +106,6 @@ rule main = parse
   | digit+ ('.' digit*)? (['e' 'E'] ['+' '-']? digit+)? { FLOAT(Lexing.lexeme lexbuf |> float_of_string) }
   | "&" { AMPERSAND }
   | "&&" { AMPERAMPER }
-  | "'" { QUOTE }
   | "(" { LPAREN }
   | ")" { RPAREN }
   | "*" { STAR }

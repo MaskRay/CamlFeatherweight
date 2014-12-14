@@ -141,6 +141,18 @@ let application_of_non_function_err e ty =
   end;
   raise Toplevel
 
+let unbound_value_err loc id =
+  Printf.eprintf "%aThe value identifier %a is unbound.\n" 
+    output_loc loc
+    output_long_ident id;
+  raise Toplevel
+
+let unbound_constr_err loc id =
+  Printf.eprintf "%aThe constructor %a is unbound.\n"
+    output_loc loc
+    output_long_ident id;
+  raise Toplevel
+
 let unbound_type_constr_err loc id =
   Printf.eprintf "%aThe type constructor %a is unbound.\n"
     output_loc loc

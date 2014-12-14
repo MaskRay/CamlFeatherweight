@@ -1,16 +1,11 @@
 open Syntax
 
-exception Desc_not_found
-
 let all_constrs : (string, constr_desc global) Hashtbl.t = Hashtbl.create 17
 let all_types : (string, type_desc global) Hashtbl.t= Hashtbl.create 17
 let all_values : (string, value_desc global) Hashtbl.t= Hashtbl.create 17
 
 let find_desc sel name =
-  try
-    Hashtbl.find sel name
-  with Not_found ->
-    raise Desc_not_found
+  Hashtbl.find sel name
 
 let find_constr_desc = find_desc all_constrs
 let find_type_desc = find_desc all_types

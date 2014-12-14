@@ -1,6 +1,5 @@
 %{
 open Syntax
-open Builtin
 
 let get_loc () = Parsing.symbol_start (), Parsing.symbol_end ()
 
@@ -36,15 +35,15 @@ let make_ternop op ({e_loc=_,m1} as e1) ({e_loc=l2,_} as e2) e3 =
 
 let make_expr_list es =
   List.fold_right (fun e acc ->
-    make_expr (Pexpr_constr(constr_cons,
+    make_expr (Pexpr_constr(Lident "::",
       Some(make_expr(Pexpr_tuple [e; acc]))))
-  ) es (make_expr(Pexpr_constr(constr_nil, None)))
+  ) es (make_expr(Pexpr_constr(Lident "[]", None)))
 
 let make_pat_list es =
   List.fold_right (fun p acc ->
-    make_pat (Ppat_constr(constr_cons,
+    make_pat (Ppat_constr(Lident "::",
       Some(make_pat(Ppat_tuple [p; acc]))))
-  ) es (make_pat(Ppat_constr(constr_nil, None)))
+  ) es (make_pat(Ppat_constr(Lident "[]", None)))
 %}
 
 %token <char> CHAR
@@ -248,7 +247,7 @@ expr:
   | expr INFIX3 expr { make_binop $2 $1 $3 }
   | expr STAR expr { make_binop "*" $1 $3 }
   | expr COLONCOLON expr {
-      make_expr(Pexpr_constr(constr_cons,
+      make_expr(Pexpr_constr(Lident "::",
         Some(make_expr(Pexpr_tuple [$1; $3])))) }
   | expr INFIX2 expr { make_binop $2 $1 $3 }
   | expr INFIX1 expr { make_binop $2 $1 $3 }
@@ -271,13 +270,19 @@ expr:
           List.map (fun (p,e) -> [p],e) $5)), [$2])) }
 
 simple_expr:
+  | CHAR { make_expr(Pexpr_constant(Const_char $1)) }
   | INT { make_expr(Pexpr_constant(Const_int $1)) }
   | FLOAT { make_expr(Pexpr_constant(Const_float $1)) }
   | STRING { make_expr(Pexpr_constant(Const_string $1)) }
-  | IDENT { make_expr(Pexpr_ident(Lident $1)) }
+  | IDENT {
+      make_expr(
+        if 'A' <= $1.[0] && $1.[0] <= 'Z' then
+          Pexpr_constr(Lident $1, None)
+        else
+          Pexpr_ident(Lident $1)) }
   | LPAREN expr RPAREN { $2 }
   | LPAREN expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }
-  | LPAREN RPAREN { make_expr(Pexpr_constr(constr_void, None)) }
+  | LPAREN RPAREN { make_expr(Pexpr_constr(Lident "()", None)) }
   | LBRACKET expr_semi_list RBRACKET { make_expr_list($2) }
   | LBRACKETBAR expr_semi_list BARRBRACKET { make_expr(Pexpr_array($2)) }
   | BEGIN expr END { $2 }
@@ -317,7 +322,7 @@ pattern:
   | simple_pattern { $1 }
   | pattern AS IDENT { make_pat(Ppat_alias($1, $3)) }
   | pattern COLONCOLON pattern {
-      make_pat(Ppat_constr(constr_cons,
+      make_pat(Ppat_constr(Lident "::",
         Some(make_pat(Ppat_tuple [$1; $3])))) }
   | pattern_comma_list %prec below_COMMA { make_pat(Ppat_tuple(List.rev $1)) }
   | pattern BAR pattern { make_pat(Ppat_or($1, $3)) }
@@ -329,7 +334,7 @@ simple_pattern:
   | IDENT { make_pat(Ppat_var($1)) }
   | LPAREN pattern RPAREN { $2 }
   | LPAREN pattern COLON type_ RPAREN { make_pat(Ppat_constraint($2, $4)) }
-  | LPAREN RPAREN { make_pat(Ppat_constr(constr_void, None)) }
+  | LPAREN RPAREN { make_pat(Ppat_constr(Lident "()", None)) }
   | LBRACKET pattern_semi_list RBRACKET { make_pat_list($2) }
   | LBRACKETBAR pattern_semi_list BARRBRACKET { make_pat(Ppat_array($2)) }
 

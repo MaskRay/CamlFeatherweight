@@ -32,15 +32,15 @@ let type_of_type_expression strict te =
     match te.te_desc with
     | Ptype_arrow(te1,te2) ->
         type_arrow (go te1) (go te2)
-    | Ptype_constr(c,params) ->
-        let c =
+    | Ptype_constr(id,params) ->
+        let cd =
           try
-            find_type_desc (string_of_long_ident c)
-          with Desc_not_found ->
-            unbound_type_constr_err te.te_loc c in
-        if List.length params <> c.info.ty_arity then
-          type_arity_err te.te_loc c params;
-        { typ_desc=Tconstr(c.info.ty_constr, List.map go params)
+            find_type_desc (string_of_long_ident id)
+          with Not_found ->
+            unbound_type_constr_err te.te_loc id in
+        if List.length params <> cd.info.ty_arity then
+          type_arity_err te.te_loc cd params;
+        { typ_desc=Tconstr(cd.info.ty_constr, List.map go params)
         ; typ_level=notgeneric }
     | Ptype_tuple tes ->
         type_product (List.map go tes)
@@ -124,7 +124,7 @@ let rec typing_expr env expr =
           try
             filter_arrow ty
           with Unify ->
-            application_of_non_function_err e ty_f
+            application_of_non_function_err expr ty_f
         in
         typing_expect env arg ty1;
         ty2
@@ -135,22 +135,28 @@ let rec typing_expr env expr =
       type_array ty
   | Pexpr_constant c ->
       type_of_constant c
-  | Pexpr_constr(c,arg) ->
+  | Pexpr_constr(id,arg) ->
+      let cd =
+        try
+          find_constr_desc (string_of_long_ident id)
+        with Not_found ->
+          unbound_constr_err expr.e_loc id
+      in
       begin match arg with
       | None ->
-        begin match c.info.cs_kind with
+        begin match cd.info.cs_kind with
         | Constr_constant ->
-            type_instance c.info.cs_res
+            type_instance cd.info.cs_res
         | _ ->
-            let ty1, ty2 = type_pair_instance c.info.cs_arg c.info.cs_res in
+            let ty1, ty2 = type_pair_instance cd.info.cs_arg cd.info.cs_res in
             type_arrow ty1 ty2
         end
       | Some arg ->
-        begin match c.info.cs_kind with
+        begin match cd.info.cs_kind with
         | Constr_constant ->
-            constant_constr_err expr.e_loc c
+            constant_constr_err expr.e_loc cd
         | _ ->
-            let ty1, ty2 = type_pair_instance c.info.cs_arg c.info.cs_res in
+            let ty1, ty2 = type_pair_instance cd.info.cs_arg cd.info.cs_res in
             typing_expect env arg ty1;
             ty2
         end
@@ -175,11 +181,18 @@ let rec typing_expr env expr =
       end;
   | Pexpr_ident id ->
       begin match id with
-      | Lident id ->
+      | Lident name ->
           type_instance (try
-              List.assoc id env
+              List.assoc name env
             with Not_found ->
-              (find_value_desc id).info.v_typ)
+              try
+                (find_value_desc name).info.v_typ
+              with Not_found ->
+                Hashtbl.iter (fun k v ->
+                  Printf.printf "+ %s\n" k;
+                ) Global.all_values;
+                unbound_value_err expr.e_loc id
+          )
       | Ldot(qual,id) ->
           type_unit
       end
@@ -267,22 +280,28 @@ and typing_pat penv pat ty =
   | Ppat_constant c ->
       unify_pat pat ty (type_of_constant c);
       penv
-  | Ppat_constr(c,arg) ->
+  | Ppat_constr(id,arg) ->
+      let cd =
+        try
+          find_constr_desc (string_of_long_ident id)
+        with Not_found ->
+          unbound_constr_err pat.p_loc id
+      in
       begin match arg with
       | None ->
-          begin match c.info.cs_kind with
+          begin match cd.info.cs_kind with
           | Constr_constant ->
-              unify_pat pat ty (type_instance c.info.cs_res);
+              unify_pat pat ty (type_instance cd.info.cs_res);
               penv
           | _ ->
-              nonconstant_constr_err pat.p_loc c
+              nonconstant_constr_err pat.p_loc cd
           end
       | Some arg ->
-          begin match c.info.cs_kind with
+          begin match cd.info.cs_kind with
           | Constr_constant ->
-              constant_constr_err pat.p_loc c
+              constant_constr_err pat.p_loc cd
           | _ ->
-              let ty1, ty2 = type_pair_instance c.info.cs_arg c.info.cs_res in
+              let ty1, ty2 = type_pair_instance cd.info.cs_arg cd.info.cs_res in
               unify_pat pat ty ty2;
               typing_pat penv arg ty1
           end

@@ -75,7 +75,7 @@ and expression_desc =
   | Pexpr_array of expression list
   | Pexpr_constant of constant
   | Pexpr_constraint of expression * type_expression
-  | Pexpr_constr of constr_desc global * expression option
+  | Pexpr_constr of long_ident * expression option
   | Pexpr_function of (pattern list * expression) list
   | Pexpr_ident of long_ident
   | Pexpr_if of expression * expression * expression option
@@ -97,7 +97,7 @@ and pattern_desc =
   | Ppat_array of pattern list
   | Ppat_constant of constant
   | Ppat_constraint of pattern * type_expression
-  | Ppat_constr of constr_desc global * pattern option
+  | Ppat_constr of long_ident * pattern option
   | Ppat_or of pattern * pattern
   | Ppat_tuple of pattern list
   | Ppat_var of string
@@ -177,8 +177,8 @@ let rec dump_pattern d pat =
         print_endline "Constraint";
         go (d+1) p;
         dump_type_expression (d+1) t
-    | Ppat_constr(cd,p) ->
-        Printf.printf "Constr %s\n" (string_of_long_ident cd.qualid);
+    | Ppat_constr(id,p) ->
+        Printf.printf "Constr %s\n" (string_of_long_ident id);
         begin match p with
         | None -> ()
         | Some p -> go (d+1) p
@@ -212,9 +212,12 @@ and dump_expression d expr =
         print_endline "Constraint";
         go (d+1) e;
         dump_type_expression (d+1) t
-    | Pexpr_constr(cd, _) ->
-        Printf.printf "Constr %s %d %d\n" (string_of_long_ident cd.qualid)
-        (fst cd.info.cs_tag) (snd cd.info.cs_tag)
+    | Pexpr_constr(id, e) ->
+        Printf.printf "Constr %s\n" (string_of_long_ident id);
+        begin match e with
+        | None -> ()
+        | Some e -> go (d+1) e
+        end
     | Pexpr_function alts ->
         print_endline "Function";
         List.iter (fun (ps,e) ->
