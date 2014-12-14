@@ -276,7 +276,7 @@ simple_expr:
   | STRING { make_expr(Pexpr_constant(Const_string $1)) }
   | IDENT {
       make_expr(
-        if 'A' <= $1.[0] && $1.[0] <= 'Z' then
+        if 'A' <= $1.[0] && $1.[0] <= 'Z' || $1 = "true" || $1 = "false" then
           Pexpr_constr(Lident $1, None)
         else
           Pexpr_ident(Lident $1)) }
