@@ -102,7 +102,7 @@ let constr_some =
   ; cs_kind=Constr_regular
   }
 
-(* global type_desc  *)
+(* global type_desc *)
 
 let () =
   let f info =
@@ -145,6 +145,10 @@ let () =
       ; ty_arity=1
       ; ty_desc=Abstract_type
       }
+  ];
+  List.iter add_global_constr
+  [ constr_void; constr_false; constr_true; constr_nil; constr_cons
+  ; constr_none; constr_some
   ]
 
 let () =
