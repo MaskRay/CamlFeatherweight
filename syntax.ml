@@ -87,7 +87,7 @@ and expression_desc =
   | Pexpr_constant of constant
   | Pexpr_constraint of expression * type_expression
   | Pexpr_constr of long_ident * expression option
-  | Pexpr_function of (pattern list * expression) list
+  | Pexpr_function of (pattern * expression) list
   | Pexpr_ident of long_ident
   | Pexpr_if of expression * expression * expression option
   | Pexpr_let of bool * (pattern * expression) list * expression
@@ -231,9 +231,9 @@ and dump_expression d expr =
         end
     | Pexpr_function alts ->
         print_endline "Function";
-        List.iter (fun (ps,e) ->
+        List.iter (fun (p,e) ->
           Printf.printf "%*sCase\n" (2*d+2) "";
-          List.iter (dump_pattern (d+2)) ps;
+          dump_pattern (d+2) p;
           go (d+2) e
         ) alts
     | Pexpr_ident id ->

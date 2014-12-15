@@ -14,8 +14,9 @@ let dbg_lexer lexbuf =
   | INT i -> "INT " ^ string_of_int i
   | FLOAT f -> "FLOAT " ^ string_of_float f
   | STRING s -> "STRING(" ^ String.escaped s ^ ")"
-  | IDENT id -> "IDENT(" ^ id ^ ")"
-  | PREFIX op -> "IDENT " ^ op
+  | LIDENT id -> "LIDENT(" ^ id ^ ")"
+  | UIDENT id -> "UIDENT(" ^ id ^ ")"
+  | PREFIX op -> "PREFIX " ^ op
   | INFIX0 op -> "INFIX0 " ^ op
   | INFIX1 op -> "INFIX1 " ^ op
   | INFIX2 op -> "INFIX2 " ^ op
@@ -52,6 +53,7 @@ let dbg_lexer lexbuf =
   | BEGIN -> "begin"
   | ELSE -> "else"
   | END -> "end"
+  | FALSE -> "false"
   | FOR -> "for"
   | FUN -> "fun"
   | FUNCTION -> "function"
@@ -66,6 +68,7 @@ let dbg_lexer lexbuf =
   | REC -> "rec"
   | THEN -> "then"
   | TO -> "to"
+  | TRUE -> "true"
   | TYPE -> "type"
   | WITH -> "with"
 

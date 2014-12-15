@@ -44,13 +44,21 @@ let make_pat_list es =
     make_pat (Ppat_constr(Lident "::",
       Some(make_pat(Ppat_tuple [p; acc]))))
   ) es (make_pat(Ppat_constr(Lident "[]", None)))
+
+let make_apply e1 e2 =
+  match e1.e_desc, e2 with
+  | Pexpr_constr(c,None), [e2] ->
+      make_expr(Pexpr_constr(c, Some e2))
+  | _ ->
+      make_expr(Pexpr_apply(e1, e2))
 %}
 
 %token <char> CHAR
 %token <int> INT
 %token <float> FLOAT
 %token <string> STRING
-%token <string> IDENT
+%token <string> LIDENT
+%token <string> UIDENT
 %token <string> PREFIX
 %token <string> INFIX0
 %token <string> INFIX1
@@ -59,6 +67,8 @@ let make_pat_list es =
 %token <string> INFIX4
 
 %token EOF
+%token FALSE
+%token TRUE
 
 %token EQUAL          /* "=" */
 %token EQUALEQUAL     /* "==" */
@@ -127,14 +137,17 @@ let make_pat_list es =
 %right AMPERSAND AMPERAMPER
 
 %left NOT
+%nonassoc below_EQUAL
 %left INFIX0 EQUAL EQUALEQUAL
 %right INFIX1
 %right COLONCOLON
 %left INFIX2
 %left INFIX3 STAR
 %right INFIX4
+%nonassoc prec_constr_app
 %left DOT
 %right PREFIX
+%right LIDENT UIDENT
 
 %start implementation
 %type <Syntax.impl_phrase list> implementation
@@ -173,9 +186,10 @@ type_:
 
 simple_type:
   | type_var { make_type_expression(Ptype_var $1) }
-  | IDENT { make_type_expression(Ptype_constr(Lident $1, [])) }
+  | simple_type LIDENT { make_type_expression(Ptype_constr(Lident $2, [$1])) }
+  | LIDENT { make_type_expression(Ptype_constr(Lident $1, [])) }
   | LPAREN type_ RPAREN { $2 }
-  | LPAREN type_ COMMA type_comma_list RPAREN IDENT { make_type_expression(Ptype_constr(Lident $6, $2::$4)) }
+  | LPAREN type_ COMMA type_comma_list RPAREN LIDENT { make_type_expression(Ptype_constr(Lident $6, $2::$4)) }
 
 type_comma_list:
   | type_ COMMA type_comma_list { $1::$3 }
@@ -192,7 +206,7 @@ type_decl_list:
   | type_decl AND type_decl_list { $1::$3 }
 
 type_decl:
-  | type_vars IDENT type_def { $2, $1, $3 }
+  | type_vars LIDENT type_def { $2, $1, $3 }
 
 type_vars:
   | LPAREN type_var_list RPAREN { $2 }
@@ -204,7 +218,7 @@ type_var_list:
   | type_var { [$1] }
 
 type_var:
-  | QUOTE IDENT { $2 }
+  | QUOTE LIDENT { $2 }
 
 type_def:
   | /* empty */ { Ptd_abstract }
@@ -216,8 +230,8 @@ constr_decl_list:
   | constr_decl { [$1] }
 
 constr_decl:
-  | IDENT OF type_ { $1, Some $3 }
-  | IDENT { $1, None }
+  | UIDENT OF type_ { $1, Some $3 }
+  | UIDENT { $1, None }
 
 /* expression */
 
@@ -240,7 +254,7 @@ seq_expr:
 
 expr:
   | simple_expr { $1 }
-  | simple_expr simple_expr_list { make_expr(Pexpr_apply($1, $2)) }
+  | simple_expr simple_expr_list { make_apply $1 $2 }
   | expr_comma_list %prec below_COMMA { make_expr(Pexpr_tuple(List.rev $1)) }
   | NOT expr { make_unop "not" $2 }
   /*| simple_expr expr LESSMINUS expr { make_expr (Pexpr_assign($1, $3)) }*/
@@ -262,31 +276,24 @@ expr:
   | IF expr THEN expr ELSE expr { make_expr(Pexpr_if($2, $4, Some $6)) }
   | IF expr THEN expr { make_expr(Pexpr_if($2, $4, None)) }
   | LET rec_flag let_binding_list IN seq_expr { make_expr(Pexpr_let($2, $3, $5)) }
-  | FUN fun_case { make_expr(Pexpr_function $2) }
-  | FUNCTION opt_bar match1_case_list {
-      make_expr (Pexpr_function (
-        List.map (fun (p,e) -> [p],e) $3)) }
+  | FUN simple_pattern fun_def { make_expr(Pexpr_function [$2, $3]) }
+  | FUNCTION opt_bar match1_case_list { make_expr (Pexpr_function $3) }
   | MATCH expr WITH opt_bar match1_case_list {
       make_expr (Pexpr_apply(
-        make_expr (Pexpr_function (
-          List.map (fun (p,e) -> [p],e) $5)), [$2])) }
+        make_expr (Pexpr_function $5), [$2])) }
 
 simple_expr:
   | CHAR { make_expr(Pexpr_constant(Const_char $1)) }
   | INT { make_expr(Pexpr_constant(Const_int $1)) }
   | FLOAT { make_expr(Pexpr_constant(Const_float $1)) }
   | STRING { make_expr(Pexpr_constant(Const_string $1)) }
-  | IDENT {
-      make_expr(
-        if 'A' <= $1.[0] && $1.[0] <= 'Z' || $1 = "true" || $1 = "false" then
-          Pexpr_constr(Lident $1, None)
-        else
-          Pexpr_ident(Lident $1)) }
+  | LIDENT { make_expr(Pexpr_ident(Lident $1)) }
+  | constr_longident { make_expr(Pexpr_constr($1, None)) }
   | LPAREN expr RPAREN { $2 }
   | LPAREN expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }
-  | LPAREN RPAREN { make_expr(Pexpr_constr(Lident "()", None)) }
   | LBRACKET expr_semi_list RBRACKET { make_expr_list($2) }
   | LBRACKETBAR expr_semi_list BARRBRACKET { make_expr(Pexpr_array($2)) }
+  | LBRACKETBAR BARRBRACKET { make_expr(Pexpr_array []) }
   | BEGIN expr END { $2 }
 
   | error
@@ -306,23 +313,51 @@ expr_comma_list: /* reversed */
 expr_semi_list:
   | expr SEMI expr_semi_list { $1 :: $3 }
   | expr { [$1] }
-  | /* empty */ { [] }
 
 /* let */
+
+val_ident:
+  | LIDENT { $1 }
+
+type_constraint:
+  | COLON type_ { $2 }
+
+fun_binding:
+  | strict_binding { $1 }
+  | type_constraint EQUAL seq_expr { make_expr(Pexpr_constraint($3, $1)) }
+
+strict_binding:
+  | EQUAL seq_expr { $2 }
+  | simple_pattern fun_binding {
+      make_expr(Pexpr_function [$1, $2]) }
 
 let_binding_list:
   | let_binding { [$1] }
   | let_binding AND let_binding_list { $1::$3 }
 
 let_binding:
+  | val_ident fun_binding { make_pat(Ppat_var $1), $2 }
   | pattern EQUAL seq_expr { $1, $3 }
-  | IDENT simple_pattern_list EQUAL seq_expr { make_pat(Ppat_var $1), make_expr(Pexpr_function [$2, $4]) }
+
+/* longident */
+
+mod_longident:
+  | UIDENT { Lident $1 }
+  | mod_longident DOT UIDENT { Ldot($1,$3) }
+
+constr_longident:
+  | LPAREN RPAREN { Lident "()" }
+  | LBRACKET RBRACKET { Lident "[]" }
+  | FALSE { Lident "false" }
+  | TRUE { Lident "true" }
+  | mod_longident { $1 }
 
 /* pattern */
 
 pattern:
   | simple_pattern { $1 }
-  | pattern AS IDENT { make_pat(Ppat_alias($1, $3)) }
+  | constr_longident pattern %prec prec_constr_app { make_pat(Ppat_constr($1, Some $2)) }
+  | pattern AS LIDENT { make_pat(Ppat_alias($1, $3)) }
   | pattern COLONCOLON pattern {
       make_pat(Ppat_constr(Lident "::",
         Some(make_pat(Ppat_tuple [$1; $3])))) }
@@ -335,15 +370,21 @@ simple_pattern:
   | FLOAT { make_pat(Ppat_constant(Const_float $1)) }
   | STRING { make_pat(Ppat_constant(Const_string $1)) }
   | UNDERSCORE { make_pat(Ppat_any) }
-  | IDENT { make_pat(Ppat_var($1)) }
+  | val_ident %prec below_EQUAL {
+      make_pat(
+        if 'A' <= $1.[0] && $1.[0] <= 'Z' then
+          Ppat_constr(Lident $1, None)
+        else
+          Ppat_var($1)) }
+  | constr_longident { make_pat(Ppat_constr($1, None)) }
   | LPAREN pattern RPAREN { $2 }
   | LPAREN pattern COLON type_ RPAREN { make_pat(Ppat_constraint($2, $4)) }
-  | LPAREN RPAREN { make_pat(Ppat_constr(Lident "()", None)) }
   | LBRACKET pattern_semi_list RBRACKET { make_pat_list($2) }
   | LBRACKETBAR pattern_semi_list BARRBRACKET { make_pat(Ppat_array($2)) }
+  | LBRACKETBAR BARRBRACKET { make_pat(Ppat_array []) }
 
-simple_pattern_list:
-  | simple_pattern simple_pattern_list { $1::$2 }
+simple_pattern_list: /* reversed */
+  | simple_pattern_list simple_pattern { $2::$1 }
   | simple_pattern { [$1] }
 
 pattern_comma_list:
@@ -353,18 +394,20 @@ pattern_comma_list:
 pattern_semi_list:
   | pattern SEMI pattern_semi_list { $1 :: $3 }
   | pattern { [$1] }
-  | /* empty */ { [] }
+
+/* fun, match */
 
 action:
   | MINUSGREATER seq_expr { $2 }
 
-fun_case:
-  | simple_pattern_list action { [$1, $2] }
+fun_def:
+  | action { $1 }
+  | simple_pattern fun_def { make_expr(Pexpr_function [$1, $2]) }
 
 match1_case_list:
   | pattern action %prec BAR { [$1, $2] }
   | pattern action BAR match1_case_list { ($1, $2)::$4 }
 
 match_case_list:
-  | simple_pattern_list action %prec BAR { [$1, $2] }
-  | simple_pattern_list action BAR match_case_list { ($1, $2)::$4 }
+  | simple_pattern_list action %prec BAR { [List.rev $1, $2] }
+  | simple_pattern_list action BAR match_case_list { (List.rev $1, $2)::$4 }

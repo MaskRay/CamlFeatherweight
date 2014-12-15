@@ -36,7 +36,8 @@ let new_type_var () =
   { typ_desc=Tvar(ref Tnolink); typ_level= !cur_level }
 
 let new_global_type_var () =
-  { typ_desc=Tvar(ref Tnolink); typ_level=0 }
+  (* typ_level=1 can be generalized *)
+  { typ_desc=Tvar(ref Tnolink); typ_level=1 }
 
 let rec new_type_var_list arity =
   if arity <= 0 then
@@ -85,16 +86,14 @@ let value_restrict ty =
     begin match ty.typ_desc with
     | Tarrow(ty1,ty2) ->
         go ty1;
-        go ty2;
-        ty.typ_level <- min ty1.typ_level ty2.typ_level
+        go ty2
     | Tconstr(_,tys)
     | Tproduct tys ->
-        ty.typ_level <- List.fold_left min max_int (List.map go tys)
+        List.iter go tys
     | Tvar _ ->
         if ty.typ_level > !cur_level then
           ty.typ_level <- !cur_level
-    end;
-    ty.typ_level
+    end
   in
   go ty |> ignore
 
@@ -256,6 +255,8 @@ let rec filter_arrow ty =
       and ty2 = { typ_desc=Tvar(ref Tnolink); typ_level=level } in
       link := Tlink { typ_desc=Tarrow(ty1, ty2); typ_level=level };
       ty1, ty2
+  | _ ->
+      raise Unify
 
 let rec filter_product arity ty =
   match type_repr ty with
@@ -270,6 +271,8 @@ let rec filter_product arity ty =
         raise Unify
   | { typ_desc=Tconstr({info={ty_abbr=Tabbrev(args,body)}}, params) } ->
       filter_product arity (expand_abbrev body args params)
+  | _ ->
+      raise Unify
 
 let rec filter_array arity ty =
   match type_repr ty with
@@ -283,3 +286,5 @@ let rec filter_array arity ty =
       ty
   | { typ_desc=Tconstr({info={ty_abbr=Tabbrev(args,body)}}, params) } ->
       filter_array arity (expand_abbrev body args params)
+  | _ ->
+      raise Unify

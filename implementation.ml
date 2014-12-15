@@ -131,10 +131,14 @@ let typing_impl_letdef loc isrec pes =
   let gens = List.map (fun (_,e) -> should_generate e) pes in
   (*List.iter (dump_typ 0) tys;*)
   List.iter2 (fun gen ty ->
-    if gen then
+    if gen then (
+      (*print_endline "+ gen";*)
       gen_type ty
-    else
+    )
+    else (
+      (*print_endline "+ restrict";*)
       value_restrict ty
+    )
   ) gens tys;
   (*List.iter (dump_typ 0) tys;*)
   if not isrec then

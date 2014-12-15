@@ -198,16 +198,13 @@ let rec typing_expr env expr =
   | Pexpr_function mat ->
       begin match mat with
       | [] -> failwith "empty matching"
-      | (ps,e)::_ as mat ->
-          let arity = List.length ps in
-          let ty_args = List.map (fun _ -> new_type_var()) ps in
-          let ty_res = new_type_var() in
-          List.iter (fun (ps,e) ->
-            if List.length ps <> arity then
-              ill_shaped_match_err expr;
-            typing_expect (typing_pat_list [] ps ty_args @ env) e ty_res
+      | (p,e)::_ as mat ->
+          let ty1 = new_type_var()
+          and ty2 = new_type_var() in
+          List.iter (fun (p,e) ->
+            typing_expect (typing_pat [] p ty1 @ env) e ty2
           ) mat;
-          List.fold_right type_arrow ty_args ty_res
+          type_arrow ty1 ty2
       end;
   | Pexpr_ident id ->
       begin match id with
