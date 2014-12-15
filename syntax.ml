@@ -309,3 +309,29 @@ let dump_impl_phrase d impl =
         dump_pattern (d+1) p;
         dump_expression (d+1) e
       ) pes
+
+let dump_typ d ty =
+  let rec go d ty =
+    Printf.printf "%*s" (2*d) "";
+    let l = ty.typ_level in
+    match ty.typ_desc with
+    | Tarrow(ty1,ty2) ->
+        Printf.printf "Tarrow %d\n" l;
+        go (d+1) ty1;
+        go (d+1) ty2
+    | Tconstr(tc,tys) ->
+        Printf.printf "Tconstr %d\n" l;
+        Printf.printf "%*s%s\n" (2*d+2) "" (string_of_long_ident tc.qualid);
+        List.iter (go (d+1)) tys
+    | Tproduct tys ->
+        Printf.printf "Tproduct %d\n" l;
+        List.iter (go (d+1)) tys
+    | Tvar link ->
+        match !link with
+        | Tnolink ->
+            Printf.printf "Tnolink %d\n" l
+        | Tlink ty ->
+            Printf.printf "Tlink %d\n" l;
+            go (d+1) ty
+  in
+  go d ty

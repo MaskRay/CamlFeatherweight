@@ -8,8 +8,12 @@ exception Unify
 exception Recursive_abbrev
 
 let cur_level = ref 0
-let push_level () = incr cur_level
-let pop_level () = decr cur_level
+let push_level () =
+  (*Printf.printf "+ level %d\n" (1+ !cur_level);*)
+  incr cur_level
+let pop_level () =
+  (*Printf.printf "- level %d\n" (!cur_level - 1);*)
+  decr cur_level
 
 (* union-find *)
 
@@ -20,15 +24,16 @@ let rec type_repr ty =
       | Tnolink ->
           ty
       | Tlink ty' ->
-          let ty = type_repr ty' in
-          link := Tlink ty;
-          ty
+          let ty'' = type_repr ty' in
+          link := Tlink ty'';
+          ty''
       end
   | _ -> ty
 
-let should_value_restrict expr =
+let rec should_generate expr =
   let rec go expr =
     match expr.e_desc with
+    | Pexpr_apply _ -> false
     | Pexpr_array [] -> true
     | Pexpr_constant _ -> true
     | Pexpr_constr(c,arg) ->
@@ -43,8 +48,11 @@ let should_value_restrict expr =
         | None -> go ifso
         | Some ifnot -> go ifso && go ifnot
         end
-    | Pexpr_let(isrec,binds,body) -> false (* TODO *)
+    | Pexpr_let(isrec,binds,body) ->
+        List.for_all (fun (_,e) -> should_generate e) binds &&
+        should_generate body
     | Pexpr_sequence(e1,e2) -> go e1 && go e2
+    | Pexpr_tuple es -> List.for_all should_generate es
     | _ -> false
   in
   go expr
@@ -75,22 +83,21 @@ let rec type_var_list level arity =
 
 let gen_type ty =
   let rec go ty =
-    let ty = type_repr ty in
-    let level = ty.typ_level in
-    begin match ty.typ_desc with
+    let ty' = type_repr ty in
+    begin match ty'.typ_desc with
     | Tarrow(ty1,ty2) ->
         let l1 = go ty1
         and l2 = go ty2 in
-        ty.typ_level <- min l1 l2
+        ty'.typ_level <- min l1 l2
     | Tconstr(_,tys) ->
-        ty.typ_level <- gos tys
+        ty'.typ_level <- gos tys
     | Tproduct tys ->
-        ty.typ_level <- gos tys
+        ty'.typ_level <- gos tys
     | Tvar _ ->
-        if level > !cur_level then
-          ty.typ_level <- generic
+        if ty'.typ_level > !cur_level then
+          ty'.typ_level <- generic
     end;
-    ty.typ_level
+    ty'.typ_level
   and gos = function
     | [] -> notgeneric
     | ty::tys ->
@@ -149,11 +156,11 @@ let rec copy_type ty =
             v
           ) else
             ty
-      | Tlink ty ->
+      | Tlink ty' ->
           if ty.typ_level = generic then
-            copy_type ty
+            ty'
           else
-            ty
+            copy_type ty'
       end
 
 let rec cleanup_type ty =
@@ -173,11 +180,11 @@ let rec cleanup_type ty =
       begin match !link with
       | Tnolink ->
           ()
-      | Tlink ty ->
+      | Tlink ty' ->
           if ty.typ_level = generic then
             link := Tnolink
           else
-            cleanup_type ty
+            cleanup_type ty'
       end
 
 let type_instance ty =

@@ -12,7 +12,7 @@ let typing_impl_expr loc e =
   push_level();
   let ty = typing_expr [] e in
   pop_level();
-  if not (should_value_restrict e) then
+  if should_generate e then
     gen_type ty;
   ty
 
@@ -128,13 +128,15 @@ let typing_impl_letdef loc isrec pes =
   ) pes tys;
   pop_level();
 
-  let gens = List.map (fun (_,e) -> should_value_restrict e) pes in
+  let gens = List.map (fun (_,e) -> should_generate e) pes in
+  (*List.iter (dump_typ 0) tys;*)
   List.iter2 (fun gen ty ->
     if gen then
       gen_type ty
     else
       value_restrict ty
   ) gens tys;
+  (*List.iter (dump_typ 0) tys;*)
   if not isrec then
     submit();
   env

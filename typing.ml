@@ -19,6 +19,32 @@ let bind_te_vars vars =
     )
   ) vars
 
+let rec should_generate expr =
+  let rec go expr =
+    match expr.e_desc with
+    | Pexpr_array [] -> true
+    | Pexpr_constant _ -> true
+    | Pexpr_constr(c,arg) ->
+        begin match arg with
+        | None -> true
+        | Some arg -> go arg
+        end
+    | Pexpr_function _ -> true
+    | Pexpr_ident _ -> true
+    | Pexpr_if(cond,ifso,ifnot) ->
+        begin match ifnot with
+        | None -> go ifso
+        | Some ifnot -> go ifso && go ifnot
+        end
+    | Pexpr_let(isrec,binds,body) ->
+        List.for_all (fun (_,e) -> should_generate e) binds &&
+        should_generate body
+    | Pexpr_sequence(e1,e2) -> go e2
+    | Pexpr_tuple es -> List.for_all should_generate es
+    | _ -> false
+  in
+  go expr
+
 (* type of *)
 
 let type_of_constant = function
@@ -62,24 +88,24 @@ let type_of_type_expression strict te =
 (* unify *)
 
 let rec unify ty1 ty2 =
-  let ty1 = type_repr ty1
-  and ty2 = type_repr ty2 in
-  if ty1 == ty2 then
+  let ty1' = type_repr ty1
+  and ty2' = type_repr ty2 in
+  if ty1' == ty2' then
     ()
-  else
-    match ty1.typ_desc, ty2.typ_desc with
+  else (
+    begin match ty1'.typ_desc, ty2'.typ_desc with
     | Tvar link1, Tvar link2 ->
-        if ty1.typ_level < ty2.typ_level then (
-          ty2.typ_level <- ty1.typ_level;
-          link2 := Tlink ty1
+        if ty1'.typ_level < ty2'.typ_level then (
+          ty2'.typ_level <- ty1'.typ_level;
+          link2 := Tlink ty1'
         ) else (
-          ty1.typ_level <- ty2.typ_level;
-          link1 := Tlink ty2
+          ty1'.typ_level <- ty2'.typ_level;
+          link1 := Tlink ty2'
         )
-    | Tvar link, _ when not (check_occur ty1.typ_level ty1 ty2) ->
-        link := Tlink ty2
-    | _, Tvar link when not (check_occur ty2.typ_level ty2 ty1) ->
-        link := Tlink ty1
+    | Tvar link, _ when not (check_occur ty1'.typ_level ty1' ty2') ->
+        link := Tlink ty2';
+    | _, Tvar link when not (check_occur ty2'.typ_level ty2' ty1') ->
+        link := Tlink ty1';
     | Tarrow(t1x,t1y), Tarrow(t2x,t2y) ->
         unify t1x t2x;
         unify t1y t2y
@@ -87,13 +113,17 @@ let rec unify ty1 ty2 =
       when c1.info.ty_stamp = c2.info.ty_stamp ->
         unify_list tys1 tys2
     | Tconstr({info={ty_abbr=Tabbrev(args,body)}}, params), _ ->
-        unify (expand_abbrev body args params) ty2
+        unify (expand_abbrev body args params) ty2'
     | _, Tconstr({info={ty_abbr=Tabbrev(args,body)}}, params) ->
-        unify ty1 (expand_abbrev body args params)
+        unify ty1' (expand_abbrev body args params)
     | Tproduct t1s, Tproduct t2s ->
         unify_list t1s t2s
     | _ ->
         raise Unify
+    end;
+    type_repr ty1 |> ignore;
+    type_repr ty2 |> ignore;
+  )
 
 and unify_list t1s t2s =
   match t1s, t2s with
@@ -188,9 +218,6 @@ let rec typing_expr env expr =
               try
                 (find_value_desc name).info.v_typ
               with Not_found ->
-                Hashtbl.iter (fun k v ->
-                  Printf.printf "+ %s\n" k;
-                ) Global.all_values;
                 unbound_value_err expr.e_loc id
           )
       | Ldot(qual,id) ->
@@ -235,7 +262,7 @@ and typing_expect env e expect_ty =
         (filter_product (List.length es) expect_ty)
       with Unify ->
         unify_expr e expect_ty (typing_expr env e)
-      end
+      end;
   | _ ->
       unify_expr e expect_ty (typing_expr env e)
 
@@ -256,11 +283,11 @@ and typing_let env isrec pes =
     typing_expect (if isrec then env' else env) e ty
   ) pes tys;
   pop_level();
-  let gens = List.map (fun (p,e) -> should_value_restrict e) pes in
+  let gens = List.map (fun (p,e) -> should_generate e) pes in
   List.iter2 (fun gen ty ->
-    if gen then
-      gen_type ty
-    else
+    if gen then (
+      gen_type ty;
+    ) else
       value_restrict ty
   ) gens tys;
   env'

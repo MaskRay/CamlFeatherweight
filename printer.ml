@@ -10,10 +10,10 @@ let print_constr_decl cd =
       Printf.printf "%s" (string_of_long_ident cd.qualid)
   | _ ->
       Printf.printf "%s of %a" (string_of_long_ident cd.qualid)
-      output_typ cd.info.cs_arg
+      output_type cd.info.cs_arg
 
 let print_typedef1 (ty_res, ty_comp) =
-  output_typ stdout ty_res;
+  output_type stdout ty_res;
   match ty_comp with
   | Abstract_type -> ()
   | Variant_type(c::cs) ->
@@ -25,16 +25,16 @@ let print_typedef1 (ty_res, ty_comp) =
       ) cs;
   | Abbrev_type(_,ty) ->
       print_string " = ";
-      output_typ stdout ty
+      output_type stdout ty
 
 (* implementation phrase printer *)
 
 let print_impl_expr ty =
-  Printf.printf "- : %a\n" output_typ ty
+  Printf.printf "- : %a\n" output_new_type ty
 
 let print_impl_letdef env =
   List.iter (fun (name,ty) ->
-    Printf.printf "val %s : %a\n" name output_typ ty
+    Printf.printf "val %s : %a\n" name output_schema ty
   ) env
 
 let print_impl_typedef = function

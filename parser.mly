@@ -127,7 +127,7 @@ let make_pat_list es =
 %right AMPERSAND AMPERAMPER
 
 %left NOT
-%left INFIX0 EQUAL
+%left INFIX0 EQUAL EQUALEQUAL
 %right INFIX1
 %right COLONCOLON
 %left INFIX2
@@ -209,6 +209,7 @@ type_var:
 type_def:
   | /* empty */ { Ptd_abstract }
   | EQUAL opt_bar constr_decl_list { Ptd_variant $3 }
+  | EQUALEQUAL type_ { Ptd_alias $2 }
 
 constr_decl_list:
   | constr_decl BAR constr_decl_list { $1::$3 }
@@ -253,6 +254,7 @@ expr:
   | expr INFIX1 expr { make_binop $2 $1 $3 }
   | expr INFIX0 expr { make_binop $2 $1 $3 }
   | expr EQUAL expr { make_binop "=" $1 $3 }
+  | expr EQUALEQUAL expr { make_binop "==" $1 $3 }
   | expr AMPERSAND expr { make_binop "&" $1 $3 }
   | expr AMPERAMPER expr { make_binop "&&" $1 $3 }
   | expr OR expr { make_binop "or" $1 $3 }
@@ -328,8 +330,10 @@ pattern:
   | pattern BAR pattern { make_pat(Ppat_or($1, $3)) }
 
 simple_pattern:
+  | CHAR { make_pat(Ppat_constant(Const_char $1)) }
   | INT { make_pat(Ppat_constant(Const_int $1)) }
   | FLOAT { make_pat(Ppat_constant(Const_float $1)) }
+  | STRING { make_pat(Ppat_constant(Const_string $1)) }
   | UNDERSCORE { make_pat(Ppat_any) }
   | IDENT { make_pat(Ppat_var($1)) }
   | LPAREN pattern RPAREN { $2 }
