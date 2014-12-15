@@ -56,6 +56,10 @@ let dump_lambda d l =
         print_endline "Lprim";
         dump_prim (d+1) prim;
         List.iter (go (d+1)) args
+    | Lsequence(l1,l2) ->
+        print_endline "Lsequence";
+        go (d+1) l1;
+        go (d+1) l2
     | Lstaticraise ->
         print_endline "Lstaticraise"
     | Lstaticcatch(l1,l2) ->
@@ -63,7 +67,7 @@ let dump_lambda d l =
         go (d+1) l1;
         go (d+1) l2
     | Lswitch(span,path,alts) ->
-        Printf.printf "Lswitch span=%d" span;
+        Printf.printf "Lswitch span=%d\n" span;
         go (d+1) path;
         List.iter (fun ((n,t),l) ->
           Printf.printf "%*s%d,%d\n" (2*d+2) "" n t;

@@ -2,6 +2,7 @@ open Builtin
 open Error
 open Front
 open Global
+open Lambda
 open Printer
 open Syntax
 open Type
@@ -155,6 +156,7 @@ let compile_impl impl =
       print_endline "Expr";
       if !verbose then
         print_impl_expr ty;
+      dump_lambda 0 @@ transl_expr [] e
   | Pimpl_typedef decl ->
       let ty_decl = typing_impl_typedef loc decl in
       if !verbose then

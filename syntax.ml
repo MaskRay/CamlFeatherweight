@@ -1,5 +1,6 @@
 type location = int * int
 type constr_tag = int * int
+let no_location = -1,-1
 
 type long_ident =
   | Lident of string
@@ -19,7 +20,7 @@ type primitive =
   | Pdivint
   | Pfield of int
   | Pfloat of float_primitive
-  | Pgetglobal
+  | Pgetglobal of long_ident
   | Pmakeblock of constr_tag
   | Pmodint
   | Pmulint
@@ -357,14 +358,14 @@ let dump_typ d ty =
 
 let dump_prim d prim =
   let rec go d prim =
-    Printf.printf "%*s" (2*d+2) "";
+    Printf.printf "%*s" (2*d) "";
     match prim with
     | Paddint -> print_endline "Paddint"
     | Pccall -> print_endline "Paddint"
     | Pdivint -> print_endline "Pdivint"
     | Pfield i -> Printf.printf "Pfield %d\n" i
     | Pfloat _ -> ()
-    | Pgetglobal -> ()
+    | Pgetglobal id -> Printf.printf "Pgetglobal %s\n" (string_of_long_ident id)
     | Pmakeblock(n,t) -> Printf.printf "Pmakeblock %d %d\n" n t
     | Pmodint -> print_endline "Pmodint"
     | Pmulint -> print_endline "Pmulint"

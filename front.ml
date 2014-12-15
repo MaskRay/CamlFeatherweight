@@ -5,7 +5,7 @@ open Syntax
 
 let search_env env name =
   let rec go i = function
-    | [] -> assert false
+    | [] -> raise Not_found
     | vs::vss ->
         try i, List.assoc name vs
         with Not_found -> go (i+1) vss
@@ -97,26 +97,63 @@ let add_to_division make_match divs key (row : row) =
   with Not_found ->
     (key, ref (make_match row)) :: divs
 
-(* (constants divided, tags divided, rest) *)
-let divide_matching (rows,paths) =
+let pat_any =
+  { p_desc=Ppat_any; p_loc=no_location; p_typ=no_type }
+
+let simplify_upper_left rows =
   let rec go = function
-    | [] ->
-        [], [], ([], paths)
-    | ([],_)::_ ->
-        assert false
     | ({p_desc=Ppat_alias(p,_)}::ps,act)::rest
     | ({p_desc=Ppat_constraint(p,_)}::ps,act)::rest ->
         go ((p::ps,act)::rest)
     | ({p_desc=Ppat_or(p1,p2)}::ps,act)::rest ->
         go ((p1::ps,act)::(p2::ps,act)::rest)
+    | rows -> rows
+  in
+  go rows
+
+(* divide *)
+
+let divide_tuple_matching arity (rows,paths) =
+  let rec go = function
+    | [] ->
+        let rec make_path n = function
+          | hd::tl ->
+              let rec make i =
+                if i >= n then tl
+                else Lprim(Pfield i, [hd]) :: make (i+1)
+              in
+              make 0
+        in
+        [], make_path arity paths
+    | ({p_desc=Ppat_tuple args}::ps,act)::rest ->
+        add_match (go rest) (args@ps,act)
+    | ({p_desc=Ppat_any|Ppat_var _}::ps,act)::rest ->
+        let rec make i =
+          if i >= arity then
+            ps
+          else
+            pat_any::make (i-1)
+        in
+        add_match (go rest) (make arity, act)
+    | _ -> assert false
+  in
+  go (simplify_upper_left rows)
+
+let divide_constant_matching (rows,paths) =
+  let rec go = function
     | ({p_desc=Ppat_constant c}::ps,act)::rest ->
-        let constants, constrs, others = go rest in
+        let constants, others = go rest in
         add_to_division (make_const_match paths) constants c (ps,act),
-        constrs,
         others
+    | rows ->
+        [], (rows, paths)
+  in
+  go (simplify_upper_left rows)
+
+let divide_constr_matching (rows,paths) =
+  let rec go = function
     | ({p_desc=Ppat_constr(id,arg)}::ps,act)::rest ->
         let cd = find_constr_desc (string_of_long_ident id) in
-        let constants, constrs, others = go rest in
         let ps =
           begin match arg with
           | None -> ps
@@ -125,14 +162,13 @@ let divide_matching (rows,paths) =
               | Constr_constant -> ps
               | _ -> arg::ps
           end in
-        constants,
-        constrs,
-        (*add_to_division (make_constr_match cd paths) constrs cd.info.cs_tag (ps,act),*)
+        let constrs, others = go rest in
+        add_to_division (make_constr_match cd paths) constrs cd.info.cs_tag (ps,act),
         others
     | rows ->
-        [], [], (rows,paths)
+        [], (rows, paths)
   in
-  go rows
+  go (simplify_upper_left rows)
 
 let upper_left_pattern =
   let rec go p =
@@ -166,6 +202,7 @@ let rec conquer_matching =
   | ([],act)::rest, _ ->
       act, Total
   | (ul::_,_)::_, (path::_) as mat ->
+      let ul = upper_left_pattern ul in
       begin match ul.p_desc with
       | Ppat_any
       | Ppat_var _ ->
@@ -177,42 +214,41 @@ let rec conquer_matching =
           else
             Lstaticcatch(lambda1, lambda2),
             (if total2 = Total then Total else Dubious)
-      | _ ->
-          let ul = upper_left_pattern ul in
-          match divide_matching mat with
-          | [], [], others ->
-              conquer_matching others
-          | constants, [], others ->
-              let divs1, _ = conquer_divided_matching constants
-              and lambda2, total2 = conquer_matching others in
-              Lstaticcatch(Lcond(path,divs1), lambda2), total2
-          | [], constrs, others ->
-              let divs1, total1 = conquer_divided_matching constrs
-              and lambda2, total2 = conquer_matching others in
-              let span = List.length divs1
-              and expect_span =
-                match ul.p_desc with
-                | Ppat_constr(id,_) ->
-                    let cd = find_constr_desc (string_of_long_ident id) in
-                    get_span_of_constr cd
-                | _ -> assert false
-              in
-              if span = expect_span && total1 = Total then
-                Lswitch(span, path, divs1), Total
-              else
-                Lstaticcatch(Lswitch(span, path, divs1), lambda2),
-                (if total1 = Total then total2
-                else if total2 = Total then Total
-                else Dubious)
+      | Ppat_constant _ ->
+          let constants, others = divide_constant_matching mat in
+          let divs1, _ = conquer_divided_matching constants
+          and lambda2, total2 = conquer_matching others in
+          Lstaticcatch(Lcond(path, divs1), lambda2), total2
+      | Ppat_constr _ ->
+          let constrs, others = divide_constr_matching mat in
+          let divs, total1 = conquer_divided_matching constrs
+          and lambda, total2 = conquer_matching others in
+          let span = List.length divs
+          and num_cs =
+            match ul.p_desc with
+            | Ppat_constr(id,_) ->
+                let cd = find_constr_desc (string_of_long_ident id) in
+                get_span_of_constr cd
             | _ -> assert false
+          in
+          if span = num_cs && total1 = Total then
+            Lswitch(span, path, divs), Total
+          else
+            Lstaticcatch(Lswitch(span, path, divs), lambda), total2
+      | Ppat_tuple p ->
+          let arity = List.length p in
+          conquer_matching @@ divide_tuple_matching arity mat
+      | _ -> assert false
       end
   | _ -> assert false
 
 let rec transl_expr env expr =
   let rec go expr =
     match expr.e_desc with
-    | Pexpr_apply(f,args) ->
-        Lapply(go f, List.map go args)
+    | Pexpr_apply(e,es) ->
+        Lapply(go e, List.map go es)
+    | Pexpr_array es ->
+        Lprim(Pmakeblock(0,0), List.map go es)
     | Pexpr_constr(id,arg) ->
         let cd = find_constr_desc (string_of_long_ident id) in
         begin match arg with
@@ -228,11 +264,17 @@ let rec transl_expr env expr =
         end
     | Pexpr_constant c ->
         Lconst c
+    | Pexpr_function pes ->
+        Labstract(transl_match expr.e_loc env @@
+          List.map (fun (p,e) -> [p],e) pes)
     | Pexpr_ident id ->
         begin match id with
         | Ldot _ -> failwith "TODO"
         | Lident name ->
-            transl_access env name
+            try
+              transl_access env name
+            with Not_found ->
+              Lprim(Pgetglobal id, []) (* TODO *)
         end
     | Pexpr_let(isrec,binds,body) ->
         if isrec then (
@@ -243,6 +285,8 @@ let rec transl_expr env expr =
         ) else
           Llet(transl_bind env binds,
           transl_match expr.e_loc env [List.map fst binds,body])
+    | Pexpr_sequence(e1,e2) ->
+        Lsequence(go e1, go e2)
     | Pexpr_tuple es ->
         Lprim(Pmakeblock(1,0), List.map go es)
   in
