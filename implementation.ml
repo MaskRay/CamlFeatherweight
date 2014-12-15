@@ -1,5 +1,6 @@
 open Builtin
 open Error
+open Front
 open Global
 open Printer
 open Syntax

@@ -1,4 +1,5 @@
 type location = int * int
+type constr_tag = int * int
 
 type long_ident =
   | Lident of string
@@ -14,11 +15,18 @@ type constant =
 
 type primitive =
   | Paddint
-  | Psubint
-  | Pmulint
+  | Pccall
   | Pdivint
-  | Pmodint
+  | Pfield of int
   | Pfloat of float_primitive
+  | Pgetglobal
+  | Pmakeblock of constr_tag
+  | Pmodint
+  | Pmulint
+  | Praise
+  | Psetfield of int
+  | Psetglobal
+  | Psubint
   | Ptest of test_primitive
 
 and float_primitive =
@@ -346,3 +354,24 @@ let dump_typ d ty =
             go (d+1) ty
   in
   go d ty
+
+let dump_prim d prim =
+  let rec go d prim =
+    Printf.printf "%*s" (2*d+2) "";
+    match prim with
+    | Paddint -> print_endline "Paddint"
+    | Pccall -> print_endline "Paddint"
+    | Pdivint -> print_endline "Pdivint"
+    | Pfield i -> Printf.printf "Pfield %d\n" i
+    | Pfloat _ -> ()
+    | Pgetglobal -> ()
+    | Pmakeblock(n,t) -> Printf.printf "Pmakeblock %d %d\n" n t
+    | Pmodint -> print_endline "Pmodint"
+    | Pmulint -> print_endline "Pmulint"
+    | Praise -> print_endline "Praise"
+    | Psetfield i -> Printf.printf "Psetfield %d\n" i
+    | Psetglobal -> print_endline "Psetglobal"
+    | Psubint -> print_endline "Psbutint"
+    | Ptest _ -> ()
+  in
+  go d prim

@@ -184,7 +184,7 @@ let expand_abbrev body args params =
         | _ -> assert false
         end
     | _ -> assert false
-  ) args params;
+  ) args' params;
   body'
 
 (* same *)
@@ -218,10 +218,13 @@ let check_recursive_abbrev c =
             if List.mem c seen then
               raise Recursive_abbrev;
             List.iter (go seen) tys;
-            match c.info.ty_abbr with
+            begin match c.info.ty_abbr with
             | Tnotabbrev -> ()
             | Tabbrev(args,body) ->
                 go (c::seen) body
+            end
+        | Tproduct tys ->
+            List.iter (go seen) tys
       in
       go [c] body
 
