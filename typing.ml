@@ -202,7 +202,6 @@ let rec typing_expr env expr =
           let arity = List.length ps in
           let ty_args = List.map (fun _ -> new_type_var()) ps in
           let ty_res = new_type_var() in
-          print_endline "+";
           List.iter (fun (ps,e) ->
             if List.length ps <> arity then
               ill_shaped_match_err expr;
@@ -304,7 +303,18 @@ and typing_pat penv pat ty =
   | Ppat_any ->
       penv
   | Ppat_array ps ->
-      penv
+      let arity = List.length ps in
+      begin try
+        let ty_elem = filter_array arity ty in
+        let rec go penv = function
+          | [] -> penv
+          | p::ps ->
+              go (typing_pat penv p ty_elem) ps
+        in
+        go penv ps
+      with Unify ->
+        pat_wrong_type_err pat ty (new_type_var())
+      end
   | Ppat_constant c ->
       unify_pat pat ty (type_of_constant c);
       penv

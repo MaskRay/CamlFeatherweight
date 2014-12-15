@@ -270,3 +270,16 @@ let rec filter_product arity ty =
         raise Unify
   | { typ_desc=Tconstr({info={ty_abbr=Tabbrev(args,body)}}, params) } ->
       filter_product arity (expand_abbrev body args params)
+
+let rec filter_array arity ty =
+  match type_repr ty with
+  | { typ_desc=Tvar link; typ_level=level } ->
+      let tv = { typ_desc=Tvar (ref Tnolink); typ_level=level } in
+      let ty = Tconstr(type_constr_array, [tv]) in
+      link := Tlink { typ_desc=ty; typ_level=level };
+      tv
+  | { typ_desc=Tconstr(tc, [ty]) }
+    when tc == type_constr_array ->
+      ty
+  | { typ_desc=Tconstr({info={ty_abbr=Tabbrev(args,body)}}, params) } ->
+      filter_array arity (expand_abbrev body args params)
