@@ -168,6 +168,15 @@ let () =
           }
     }
   in
+  let tv = { typ_desc=Tvar (ref Tnolink); typ_level=generic } in
+  let polyop (op,p) =
+    add_global_value
+    { qualid=Lident op
+    ; info={ v_typ=type_arrow tv (type_arrow tv type_bool)
+          ; v_prim=Prim(2, p)
+          }
+    }
+  in
   List.iter intop
   [ "+", Paddint
   ; "-", Psubint
@@ -179,4 +188,14 @@ let () =
   ; "-.", Pfloat Psubfloat
   ; "*.", Pfloat Pmulfloat
   ; "/.", Pfloat Pdivfloat
+  ];
+  List.iter polyop
+  [ "=", Ptest Peq
+  ; "==", Ptest Peql
+  ; "<>", Ptest Pneq
+  ; "!=", Ptest Pneql
+  ; "<", Ptest Plt
+  ; "<=", Ptest Ple
+  ; ">", Ptest Pgt
+  ; ">=", Ptest Pge
   ];

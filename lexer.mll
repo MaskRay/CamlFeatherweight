@@ -118,6 +118,7 @@ rule main = parse
   | "<-" { LESSMINUS }
   | "=" { EQUAL }
   | "==" { EQUALEQUAL }
+  | "!=" { INFIX0 "!=" }
   | "[" { LBRACKET }
   | "[|" { LBRACKETBAR }
   | "]" { RBRACKET }

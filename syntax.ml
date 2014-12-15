@@ -19,6 +19,7 @@ type primitive =
   | Pdivint
   | Pmodint
   | Pfloat of float_primitive
+  | Ptest of test_primitive
 
 and float_primitive =
   | Paddfloat
@@ -26,6 +27,16 @@ and float_primitive =
   | Pmulfloat
   | Pdivfloat
   | Pmodfloat
+
+and test_primitive =
+  | Peq
+  | Peql
+  | Pneq
+  | Pneql
+  | Plt
+  | Ple
+  | Pgt
+  | Pge
 
 (* global *)
 
