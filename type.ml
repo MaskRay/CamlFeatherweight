@@ -30,33 +30,6 @@ let rec type_repr ty =
       end
   | _ -> ty
 
-let rec should_generate expr =
-  let rec go expr =
-    match expr.e_desc with
-    | Pexpr_apply _ -> false
-    | Pexpr_array [] -> true
-    | Pexpr_constant _ -> true
-    | Pexpr_constr(c,arg) ->
-        begin match arg with
-        | None -> true
-        | Some arg -> go arg
-        end
-    | Pexpr_function _ -> true
-    | Pexpr_ident _ -> true
-    | Pexpr_if(cond,ifso,ifnot) ->
-        begin match ifnot with
-        | None -> go ifso
-        | Some ifnot -> go ifso && go ifnot
-        end
-    | Pexpr_let(isrec,binds,body) ->
-        List.for_all (fun (_,e) -> should_generate e) binds &&
-        should_generate body
-    | Pexpr_sequence(e1,e2) -> go e1 && go e2
-    | Pexpr_tuple es -> List.for_all should_generate es
-    | _ -> false
-  in
-  go expr
-
 (* new *)
 
 let new_type_var () =
@@ -195,8 +168,8 @@ let type_instance ty =
 let type_pair_instance ty1 ty2 =
   let ty1' = copy_type ty1
   and ty2' = copy_type ty2 in
-  cleanup_type ty1';
-  cleanup_type ty2';
+  cleanup_type ty1;
+  cleanup_type ty2;
   ty1', ty2'
 
 let expand_abbrev body args params =

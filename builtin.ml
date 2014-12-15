@@ -68,7 +68,7 @@ let constr_true =
 let constr_nil =
   let arg = { typ_desc=Tvar(ref Tnolink); typ_level=generic } in
   f "[]"
-  { cs_res={ typ_desc=Tconstr(type_constr_list, [arg]); typ_level=notgeneric }
+  { cs_res={ typ_desc=Tconstr(type_constr_list, [arg]); typ_level=generic }
   ; cs_arg=type_unit
   ; cs_tag=2,0
   ; cs_kind=Constr_constant

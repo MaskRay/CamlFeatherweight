@@ -202,6 +202,7 @@ let rec typing_expr env expr =
           let arity = List.length ps in
           let ty_args = List.map (fun _ -> new_type_var()) ps in
           let ty_res = new_type_var() in
+          print_endline "+";
           List.iter (fun (ps,e) ->
             if List.length ps <> arity then
               ill_shaped_match_err expr;
