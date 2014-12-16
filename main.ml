@@ -1,4 +1,5 @@
 open Error
+open Location
 open Parser
 open Lexer
 open Syntax
@@ -72,7 +73,9 @@ let dbg_lexer lexbuf =
   | TYPE -> "type"
   | WITH -> "with"
 
-let channel ic =
+let file f =
+  let ic = open_in f in
+  Location.input_chan := ic;
   let lexbuf = Lexing.from_channel ic in
   match !stage with
   | 0 ->
@@ -91,25 +94,27 @@ let channel ic =
       try
         let impls = Parser.implementation Lexer.main lexbuf in
         compile_implementation impls
-      with Lexical_error(err, (l,m)) ->
-        Printf.eprintf "character %d-%d" l m;
+      with Lexical_error(err, l) ->
+        (*Printf.eprintf "character %d-%d" l m;*)
         begin match err with
         | Bad_char_constant ->
-            prerr_endline "Ill-formed character literal"
+            Printf.eprintf "%aIll-formed character literal\n"
+            output_location l
         | Illegal_character ch ->
-            Printf.eprintf "Illegal character %c\n" ch
+            Printf.eprintf "%aIllegal character %c\n"
+            output_location l
+            ch
         | Unterminated_comment ->
-            prerr_endline "Comment not terminated"
+            Printf.eprintf "%aComment not terminated\n"
+            output_location l
         | Unterminated_string ->
-            prerr_endline "String literal not terminated"
+            Printf.eprintf "%aString literal not terminated\n"
+            output_location l
         end;
         close_in ic
       (*| Parser.Error _ ->*)
         (*prerr_endline "Syntax error";*)
         (*close_in ic*)
-
-let file f =
-  channel (if f = "-" then stdin else open_in f)
 
 let () =
   let files = ref [] in
@@ -119,7 +124,4 @@ let () =
     ]
     (fun s -> files := s :: !files)
     ("compiler");
-  if !files = [] then
-    channel stdin
-  else
-    List.rev !files |> List.iter file
+  List.rev !files |> List.iter file

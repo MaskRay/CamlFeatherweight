@@ -20,11 +20,13 @@ type primitive =
   | Pdivint
   | Pfield of int
   | Pfloat of float_primitive
+  | Pgetarrayitem
   | Pgetglobal of long_ident
   | Pmakeblock of constr_tag
   | Pmodint
   | Pmulint
   | Praise
+  | Psetarrayitem
   | Psetfield of int
   | Psetglobal
   | Psubint
@@ -331,28 +333,45 @@ let dump_impl_phrase d impl =
       ) pes
 
 let dump_typ d ty =
+  let seen = ref [] in
+  let ctr = ref 0 in
   let rec go d ty =
     Printf.printf "%*s" (2*d) "";
     let l = ty.typ_level in
+    let id =
+      if List.mem_assq ty !seen then
+        List.assq ty !seen
+      else (
+        seen := (ty, !ctr) :: !seen;
+        incr ctr;
+        !ctr-1
+      ) in
     match ty.typ_desc with
     | Tarrow(ty1,ty2) ->
-        Printf.printf "Tarrow %d\n" l;
+        Printf.printf "Tarrow %d id=%d\n" l id;
         go (d+1) ty1;
         go (d+1) ty2
     | Tconstr(tc,tys) ->
-        Printf.printf "Tconstr %d\n" l;
+        Printf.printf "Tconstr %d id=%d\n" l id;
         Printf.printf "%*s%s\n" (2*d+2) "" (string_of_long_ident tc.qualid);
         List.iter (go (d+1)) tys
     | Tproduct tys ->
-        Printf.printf "Tproduct %d\n" l;
+        Printf.printf "Tproduct %d id=%d\n" l id;
         List.iter (go (d+1)) tys
     | Tvar link ->
+        Printf.printf "Tvar %d id=%d\n" l id;
         match !link with
         | Tnolink ->
-            Printf.printf "Tnolink %d\n" l
+            Printf.printf "%*sTnolink\n" (2*d+2) ""
         | Tlink ty ->
-            Printf.printf "Tlink %d\n" l;
-            go (d+1) ty
+            if List.mem_assq ty !seen then
+              Printf.printf "%*sTlink id=%d\n" (2*d+2) "" (List.assq ty !seen)
+            else (
+              Printf.printf "%*sTlink id=%d\n" (2*d+2) "" !ctr;
+              seen := (ty, !ctr) :: !seen;
+              incr ctr;
+              go (d+2) ty
+            );
   in
   go d ty
 
@@ -365,11 +384,13 @@ let dump_prim d prim =
     | Pdivint -> print_endline "Pdivint"
     | Pfield i -> Printf.printf "Pfield %d\n" i
     | Pfloat _ -> ()
+    | Pgetarrayitem -> print_endline "Pgetarrayitem"
     | Pgetglobal id -> Printf.printf "Pgetglobal %s\n" (string_of_long_ident id)
     | Pmakeblock(n,t) -> Printf.printf "Pmakeblock %d %d\n" n t
     | Pmodint -> print_endline "Pmodint"
     | Pmulint -> print_endline "Pmulint"
     | Praise -> print_endline "Praise"
+    | Psetarrayitem -> print_endline "Psetarrayitem"
     | Psetfield i -> Printf.printf "Psetfield %d\n" i
     | Psetglobal -> print_endline "Psetglobal"
     | Psubint -> print_endline "Psbutint"

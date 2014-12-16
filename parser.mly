@@ -273,6 +273,9 @@ expr:
   | expr AMPERAMPER expr { make_binop "&&" $1 $3 }
   | expr OR expr { make_binop "or" $1 $3 }
   | expr BARBAR expr { make_binop "||" $1 $3 }
+  | simple_expr DOT LPAREN seq_expr RPAREN LESSMINUS expr {
+      make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "Array", "set"))),
+        [$1; $4; $7])) }
   | IF expr THEN expr ELSE expr { make_expr(Pexpr_if($2, $4, Some $6)) }
   | IF expr THEN expr { make_expr(Pexpr_if($2, $4, None)) }
   | LET rec_flag let_binding_list IN seq_expr { make_expr(Pexpr_let($2, $3, $5)) }
@@ -289,6 +292,9 @@ simple_expr:
   | STRING { make_expr(Pexpr_constant(Const_string $1)) }
   | LIDENT { make_expr(Pexpr_ident(Lident $1)) }
   | constr_longident { make_expr(Pexpr_constr($1, None)) }
+  | simple_expr DOT LPAREN seq_expr RPAREN {
+      make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "Array", "get"))),
+        [$1; $4])) }
   | LPAREN expr RPAREN { $2 }
   | LPAREN expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }
   | LBRACKET expr_semi_list RBRACKET { make_expr_list($2) }

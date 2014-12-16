@@ -160,8 +160,16 @@ let rec cleanup_type ty =
       end
 
 let type_instance ty =
+  (*print_endline "+ before";*)
+  (*dump_typ 0 ty;*)
   let ty' = copy_type ty in
+  (*print_endline "+ copy 1";*)
+  (*dump_typ 0 ty;*)
+  (*print_endline "+ copy 2";*)
+  (*dump_typ 0 ty';*)
   cleanup_type ty;
+  (*print_endline "+ after";*)
+  (*dump_typ 0 ty';*)
   ty'
 
 let type_pair_instance ty1 ty2 =

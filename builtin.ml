@@ -29,9 +29,13 @@ let type_option = f type_constr_option
 let f desc t = { typ_desc=Tconstr(desc, [t]); typ_level=notgeneric }
 let type_list   = f type_constr_list
 let type_array  = f type_constr_array
+let gen_type_array ty =
+  { typ_desc=Tconstr(type_constr_array, [ty]); typ_level=generic }
 
 let type_arrow t1 t2 =
   { typ_desc=Tarrow(t1,t2); typ_level=notgeneric }
+let gen_type_arrow t1 t2 =
+  { typ_desc=Tarrow(t1,t2); typ_level=generic }
 
 let type_product ts =
   { typ_desc=Tproduct ts; typ_level=notgeneric }
@@ -102,6 +106,8 @@ let constr_some =
   ; cs_kind=Constr_regular
   }
 
+let generic_var = { typ_desc=Tvar (ref Tnolink); typ_level=generic }
+
 (* global type_desc *)
 
 let () =
@@ -168,11 +174,10 @@ let () =
           }
     }
   in
-  let tv = { typ_desc=Tvar (ref Tnolink); typ_level=generic } in
   let polyop (op,p) =
     add_global_value
     { qualid=Lident op
-    ; info={ v_typ=type_arrow tv (type_arrow tv type_bool)
+    ; info={ v_typ=type_arrow generic_var (type_arrow generic_var type_bool)
           ; v_prim=Prim(2, p)
           }
     }
@@ -198,4 +203,22 @@ let () =
   ; "<=", Ptest Ple
   ; ">", Ptest Pgt
   ; ">=", Ptest Pge
-  ];
+  ]
+
+(* global value *)
+
+let () =
+  (*let ty = gen_type_array ({ typ_desc=Tvar(ref (Tlink generic_var)); typ_level=notgeneric }) in*)
+  let ty = gen_type_array generic_var in
+  add_global_value
+  { qualid=Ldot(Lident "Array", "get")
+  ; info={ v_typ=gen_type_arrow ty (gen_type_arrow type_int generic_var)
+         ; v_prim=Prim(2, Pgetarrayitem)
+         }
+  };
+  add_global_value
+  { qualid=Ldot(Lident "Array", "set")
+  ; info={ v_typ=gen_type_arrow ty (gen_type_arrow type_int (gen_type_arrow generic_var type_unit))
+         ; v_prim=Prim(3, Psetarrayitem)
+         }
+  }

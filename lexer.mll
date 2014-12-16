@@ -112,6 +112,7 @@ rule main = parse
   | ")" { RPAREN }
   | "*" { STAR }
   | "," { COMMA }
+  | "." { DOT }
   | "->" { MINUSGREATER }
   | ":" { COLON }
   | "::" { COLONCOLON }

@@ -153,7 +153,7 @@ let divide_constant_matching (rows,paths) =
 let divide_constr_matching (rows,paths) =
   let rec go = function
     | ({p_desc=Ppat_constr(id,arg)}::ps,act)::rest ->
-        let cd = find_constr_desc (string_of_long_ident id) in
+        let cd = find_constr_desc id in
         let ps =
           begin match arg with
           | None -> ps
@@ -227,7 +227,7 @@ let rec conquer_matching =
           and num_cs =
             match ul.p_desc with
             | Ppat_constr(id,_) ->
-                let cd = find_constr_desc (string_of_long_ident id) in
+                let cd = find_constr_desc id in
                 get_span_of_constr cd
             | _ -> assert false
           in
@@ -250,7 +250,7 @@ let rec transl_expr env expr =
     | Pexpr_array es ->
         Lprim(Pmakeblock(0,0), List.map go es)
     | Pexpr_constr(id,arg) ->
-        let cd = find_constr_desc (string_of_long_ident id) in
+        let cd = find_constr_desc id in
         begin match arg with
         | None ->
             begin match cd.info.cs_kind with

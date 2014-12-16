@@ -61,7 +61,7 @@ let type_of_type_expression strict te =
     | Ptype_constr(id,params) ->
         let cd =
           try
-            find_type_desc (string_of_long_ident id)
+            find_type_desc id
           with Not_found ->
             unbound_type_constr_err te.te_loc id in
         if List.length params <> cd.info.ty_arity then
@@ -167,10 +167,8 @@ let rec typing_expr env expr =
       type_of_constant c
   | Pexpr_constr(id,arg) ->
       let cd =
-        try
-          find_constr_desc (string_of_long_ident id)
-        with Not_found ->
-          unbound_constr_err expr.e_loc id
+        try find_constr_desc id
+        with Not_found -> unbound_constr_err expr.e_loc id
       in
       begin match arg with
       | None ->
@@ -209,16 +207,20 @@ let rec typing_expr env expr =
   | Pexpr_ident id ->
       begin match id with
       | Lident name ->
-          type_instance (try
+          let t = type_instance (try
               List.assoc name env
             with Not_found ->
               try
-                (find_value_desc name).info.v_typ
+                (find_value_desc id).info.v_typ
               with Not_found ->
                 unbound_value_err expr.e_loc id
-          )
-      | Ldot(qual,id) ->
-          type_unit
+          ) in
+          t
+      | Ldot _ ->
+          try
+            type_instance (find_value_desc id).info.v_typ
+          with Not_found ->
+            unbound_value_err expr.e_loc id
       end
   | Pexpr_if(cond,ifso,ifnot) ->
       typing_expect env cond type_bool;
@@ -317,10 +319,8 @@ and typing_pat penv pat ty =
       penv
   | Ppat_constr(id,arg) ->
       let cd =
-        try
-          find_constr_desc (string_of_long_ident id)
-        with Not_found ->
-          unbound_constr_err pat.p_loc id
+        try find_constr_desc id
+        with Not_found -> unbound_constr_err pat.p_loc id
       in
       begin match arg with
       | None ->
