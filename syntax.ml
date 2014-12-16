@@ -21,12 +21,14 @@ type primitive =
   | Pfield of int
   | Pfloat of float_primitive
   | Pgetarrayitem
+  | Pgetstringitem
   | Pgetglobal of long_ident
   | Pmakeblock of constr_tag
   | Pmodint
   | Pmulint
   | Praise
   | Psetarrayitem
+  | Psetstringitem
   | Psetfield of int
   | Psetglobal
   | Psubint
@@ -385,12 +387,14 @@ let dump_prim d prim =
     | Pfield i -> Printf.printf "Pfield %d\n" i
     | Pfloat _ -> ()
     | Pgetarrayitem -> print_endline "Pgetarrayitem"
+    | Pgetstringitem -> print_endline "Pgetstringitem"
     | Pgetglobal id -> Printf.printf "Pgetglobal %s\n" (string_of_long_ident id)
     | Pmakeblock(n,t) -> Printf.printf "Pmakeblock %d %d\n" n t
     | Pmodint -> print_endline "Pmodint"
     | Pmulint -> print_endline "Pmulint"
     | Praise -> print_endline "Praise"
     | Psetarrayitem -> print_endline "Psetarrayitem"
+    | Psetstringitem -> print_endline "Psetstringitem"
     | Psetfield i -> Printf.printf "Psetfield %d\n" i
     | Psetglobal -> print_endline "Psetglobal"
     | Psubint -> print_endline "Psbutint"

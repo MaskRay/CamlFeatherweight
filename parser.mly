@@ -276,6 +276,9 @@ expr:
   | simple_expr DOT LPAREN seq_expr RPAREN LESSMINUS expr {
       make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "Array", "set"))),
         [$1; $4; $7])) }
+  | simple_expr DOT LBRACKET seq_expr RBRACKET LESSMINUS expr {
+      make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "String", "set"))),
+        [$1; $4; $7])) }
   | IF expr THEN expr ELSE expr { make_expr(Pexpr_if($2, $4, Some $6)) }
   | IF expr THEN expr { make_expr(Pexpr_if($2, $4, None)) }
   | LET rec_flag let_binding_list IN seq_expr { make_expr(Pexpr_let($2, $3, $5)) }
@@ -294,6 +297,9 @@ simple_expr:
   | constr_longident { make_expr(Pexpr_constr($1, None)) }
   | simple_expr DOT LPAREN seq_expr RPAREN {
       make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "Array", "get"))),
+        [$1; $4])) }
+  | simple_expr DOT LBRACKET seq_expr RBRACKET {
+      make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "String", "get"))),
         [$1; $4])) }
   | LPAREN expr RPAREN { $2 }
   | LPAREN expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }

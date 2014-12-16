@@ -221,4 +221,16 @@ let () =
   ; info={ v_typ=gen_type_arrow ty (gen_type_arrow type_int (gen_type_arrow generic_var type_unit))
          ; v_prim=Prim(3, Psetarrayitem)
          }
+  };
+  add_global_value
+  { qualid=Ldot(Lident "String", "get")
+  ; info={ v_typ=type_arrow type_string (type_arrow type_int type_char)
+         ; v_prim=Prim(2, Pgetarrayitem)
+         }
+  };
+  add_global_value
+  { qualid=Ldot(Lident "String", "set")
+  ; info={ v_typ=type_arrow type_string (type_arrow type_int (type_arrow type_char type_unit))
+         ; v_prim=Prim(3, Psetarrayitem)
+         }
   }
