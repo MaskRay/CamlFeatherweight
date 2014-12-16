@@ -18,6 +18,7 @@ type primitive =
   | Paddint
   | Pccall
   | Pdivint
+  | Pdummy
   | Pfield of int
   | Pfloat of float_primitive
   | Pgetarrayitem
@@ -30,9 +31,10 @@ type primitive =
   | Psetarrayitem
   | Psetstringitem
   | Psetfield of int
-  | Psetglobal
+  | Psetglobal of long_ident
   | Psubint
   | Ptest of test_primitive
+  | Pupdate
 
 and float_primitive =
   | Paddfloat
@@ -166,6 +168,24 @@ let new_type_stamp () =
   let r = !init_stamp in
   incr init_stamp;
   r
+
+(* pattern *)
+
+let rec free_vars_of_pat pat =
+  match pat.p_desc with
+  | Ppat_alias(p,_)
+  | Ppat_constraint(p,_) -> free_vars_of_pat p
+  | Ppat_any
+  | Ppat_constant _ -> []
+  | Ppat_array ps
+  | Ppat_tuple ps -> List.map free_vars_of_pat ps |> List.concat
+  | Ppat_constr(_,arg) ->
+      begin match arg with
+      | None -> []
+      | Some arg -> free_vars_of_pat arg
+      end
+  | Ppat_or(p1,p2) -> free_vars_of_pat p1 @ free_vars_of_pat p2
+  | Ppat_var v -> [v]
 
 (* dump *)
 
@@ -384,6 +404,7 @@ let dump_prim d prim =
     | Paddint -> print_endline "Paddint"
     | Pccall -> print_endline "Paddint"
     | Pdivint -> print_endline "Pdivint"
+    | Pdummy -> print_endline "Pdummy"
     | Pfield i -> Printf.printf "Pfield %d\n" i
     | Pfloat _ -> ()
     | Pgetarrayitem -> print_endline "Pgetarrayitem"
@@ -396,8 +417,9 @@ let dump_prim d prim =
     | Psetarrayitem -> print_endline "Psetarrayitem"
     | Psetstringitem -> print_endline "Psetstringitem"
     | Psetfield i -> Printf.printf "Psetfield %d\n" i
-    | Psetglobal -> print_endline "Psetglobal"
+    | Psetglobal id -> Printf.printf "Psetglobal %s\n" (string_of_long_ident id)
     | Psubint -> print_endline "Psbutint"
     | Ptest _ -> ()
+    | Pupdate -> print_endline "Pupdate"
   in
   go d prim

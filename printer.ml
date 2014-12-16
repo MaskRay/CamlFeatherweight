@@ -16,6 +16,7 @@ let print_typedef1 (ty_res, ty_comp) =
   output_type stdout ty_res;
   match ty_comp with
   | Abstract_type -> ()
+  | Variant_type [] -> assert false
   | Variant_type(c::cs) ->
       print_string " = ";
       print_constr_decl c;

@@ -123,6 +123,11 @@ let nonconstant_constr_err loc c =
     output_constr c;
   raise Toplevel
 
+let illegal_letrec_pat loc =
+  Printf.eprintf "%aOnly variables are allowed as left-hand sides of \"let rec\".\n"
+    output_location loc;
+  raise Toplevel
+
 let ill_shaped_match_err e =
   Printf.eprintf "%aThis curried matching contains cases of different lengths.\n"
     output_location e.e_loc;

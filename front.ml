@@ -53,6 +53,8 @@ let paths_of_pat path p =
 let make_env env ps =
   List.fold_left (fun env p -> paths_of_pat [] p :: env) env ps
 
+(* matching *)
+
 type res = Partial | Total | Dubious
 
 type row = pattern list * lambda
@@ -123,6 +125,7 @@ let divide_tuple_matching arity (rows,paths) =
                 else Lprim(Pfield i, [hd]) :: make (i+1)
               in
               make 0
+          | [] -> assert false
         in
         [], make_path arity paths
     | ({p_desc=Ppat_tuple args}::ps,act)::rest ->
@@ -242,6 +245,19 @@ let rec conquer_matching =
       end
   | _ -> assert false
 
+let translate_matching loc env rows =
+  let rec go = function
+    | 0 -> []
+    | n -> Lvar(n-1) :: go (n-1)
+  in
+  let row_len = List.hd rows |> fst |> List.length in
+  let lambda, total = conquer_matching (rows, go row_len) in
+  match total with
+  | Total -> lambda
+  | _ -> Lstaticcatch(lambda, Lprim(Praise, [])) (* FIXME report error *)
+
+(* toplevel expression *)
+
 let rec transl_expr env expr =
   let rec go expr =
     match expr.e_desc with
@@ -249,6 +265,8 @@ let rec transl_expr env expr =
         Lapply(go e, List.map go es)
     | Pexpr_array es ->
         Lprim(Pmakeblock(0,0), List.map go es)
+    | Pexpr_constant c ->
+        Lconst c
     | Pexpr_constr(id,arg) ->
         let cd = find_constr_desc id in
         begin match arg with
@@ -256,25 +274,33 @@ let rec transl_expr env expr =
             begin match cd.info.cs_kind with
             | Constr_constant ->
                 Lprim(Pmakeblock cd.info.cs_tag, [])
-            | Constr_regular ->
+            | _ ->
                 Labstract(Lprim(Pmakeblock cd.info.cs_tag, [Lvar 0]))
             end
         | Some arg ->
             Lprim(Pmakeblock cd.info.cs_tag, [go arg])
         end
-    | Pexpr_constant c ->
-        Lconst c
+    | Pexpr_constraint(e,_) ->
+        go e
     | Pexpr_function pes ->
         Labstract(transl_match expr.e_loc env @@
           List.map (fun (p,e) -> [p],e) pes)
     | Pexpr_ident id ->
         begin match id with
-        | Ldot _ -> failwith "TODO"
+        | Ldot _ ->
+            Lprim(Pgetglobal id, [])
         | Lident name ->
             try
               transl_access env name
             with Not_found ->
               Lprim(Pgetglobal id, []) (* TODO *)
+        end
+    | Pexpr_if(cond,ifso,ifnot) ->
+        begin match ifnot with
+        | None ->
+            Lif(go cond, go ifso, Lconst(Const_int 0))
+        | Some ifnot ->
+            Lif(go cond, go ifso, go ifnot)
         end
     | Pexpr_let(isrec,binds,body) ->
         if isrec then (
@@ -294,19 +320,51 @@ let rec transl_expr env expr =
 
 and transl_bind env = function
   | [] -> []
-  | (p,e)::pes ->
+  | (_,e)::pes ->
       transl_expr env e :: transl_bind ([]::env) pes
 
 and transl_match loc env psas =
   let rows = List.map (fun (ps,act) ->
-    ps, transl_expr (make_env env ps) act
-  ) psas in
-  let rec go = function
-    | 0 -> []
-    | n -> Lvar(n-1) :: go (n-1)
+    ps, transl_expr (make_env env ps) act) psas in
+  translate_matching loc env rows
+
+let translate_expr = transl_expr []
+
+(* toplevel letdef *)
+
+let rec make_sequence f = function
+  | [] -> Lconst(Const_int 0)
+  | [x] -> f x
+  | x::xs -> Lsequence(f x, make_sequence f xs)
+
+let translate_letdef loc isrec binds =
+  let rec extract_var p =
+    match p.p_desc with
+    | Ppat_var v -> v
+    | Ppat_constraint(p,_) -> extract_var p
+    | _ -> illegal_letrec_pat p.p_loc
   in
-  let row_len = List.hd rows |> fst |> List.length in
-  let lambda, total = conquer_matching (rows, go row_len) in
-  match total with
-  | Total -> lambda
-  | _ -> Lstaticcatch(lambda, Lprim(Praise, [])) (* FIXME report error *)
+  if isrec then
+    let ves = List.map (fun (p,e) -> extract_var p, e) binds in
+    let dummies =
+      make_sequence (fun (v,e) ->
+        Lprim(Psetglobal(Lident v), [Lprim(Pdummy, [])])) ves
+    in
+    let updates =
+      make_sequence (fun (v,e) ->
+        Lprim(Pupdate, [Lprim(Pgetglobal(Lident v), []); translate_expr e]))
+      ves
+    in
+    Lsequence(dummies, updates)
+  else
+    match binds with
+    | [{ p_desc=Ppat_var v }, e] -> (* let var = expr *)
+        (* TODO module *)
+        Lprim(Psetglobal(Lident v), [translate_expr e])
+    | _ ->
+        let ps = List.map fst binds in
+        let vars = List.map free_vars_of_pat ps |> List.concat in
+        let env = List.fold_left (fun env p -> paths_of_pat [] p :: env) [] ps in
+        let store var = Lprim(Psetglobal(Lident var), [transl_access env var]) in
+        Llet(transl_bind [] binds,
+          translate_matching loc [] [ps, make_sequence store vars])

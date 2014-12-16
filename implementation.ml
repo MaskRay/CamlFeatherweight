@@ -156,15 +156,16 @@ let compile_impl impl =
       print_endline "Expr";
       if !verbose then
         print_impl_expr ty;
-      dump_lambda 0 @@ transl_expr [] e
+      dump_lambda 0 @@ translate_expr e
   | Pimpl_typedef decl ->
       let ty_decl = typing_impl_typedef loc decl in
       if !verbose then
         print_impl_typedef ty_decl
-  | Pimpl_letdef(isrec,pes) ->
-      let env = typing_impl_letdef loc isrec pes in
+  | Pimpl_letdef(isrec,binds) ->
+      let env = typing_impl_letdef loc isrec binds in
       if !verbose then
-        print_impl_letdef env
+        print_impl_letdef env;
+      dump_lambda 0 @@ translate_letdef impl.im_loc isrec binds
 
 let compile_implementation impls =
   List.iter compile_impl impls
