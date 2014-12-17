@@ -2,6 +2,7 @@
 
 enum instruction {
   ACCESS,
+  ADDFLOAT,
   ADDINT,
   ANDINT,
   APPLY,
@@ -22,6 +23,7 @@ enum instruction {
   CONSTINT8,
   CONSTINT16,
   CUR,
+  DIVFLOAT,
   DIVINT,
   DUMMY,
   ENDLET,
@@ -51,7 +53,9 @@ enum instruction {
   MAKEBLOCK,
   MAKESTRING,
   MODINT,
+  MULFLOAT,
   MULINT,
+  NEGFLOAT,
   NEGINT,
   NEQ,
   NEQFLOAT,
@@ -72,6 +76,7 @@ enum instruction {
   SHRINT,
   STOP,
   STRINGLENGTH,
+  SUBFLOAT,
   SUBINT,
   SWITCH,
   TAGOF,

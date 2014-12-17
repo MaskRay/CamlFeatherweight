@@ -72,10 +72,18 @@ let dbg_lexer lexbuf =
   | WITH -> "with"
 
 let file f =
-  let ic = open_in f in
+  if not (Filename.check_suffix f ".ml") then (
+    Printf.eprintf "Input files should be `*.ml'\n";
+    exit 1
+  );
+  let basename = Filename.chop_suffix f ".ml" in
+  let obj_name = basename ^ ".zo" in
+
+  let ic = open_in_bin f in
+  let oc = open_out_bin obj_name in
   Location.input_chan := ic;
   let lexbuf = Lexing.from_channel ic in
-  match !stage with
+  begin match !stage with
   | 0 ->
       let rec go () =
         let s = dbg_lexer lexbuf in
@@ -90,7 +98,7 @@ let file f =
   | _ ->
       try
         let impls = Parser.implementation Lexer.main lexbuf in
-        compile_implementation impls
+        compile_implementation oc impls
       with Lexical_error(err, l) ->
         (*Printf.eprintf "character %d-%d" l m;*)
         begin match err with
@@ -107,18 +115,18 @@ let file f =
         | Unterminated_string ->
             Printf.eprintf "%aString literal not terminated\n"
             output_location l
-        end;
-        close_in ic
       (*| Parser.Error _ ->*)
         (*prerr_endline "Syntax error";*)
         (*close_in ic*)
+        end
+  end;
+  close_in ic;
+  close_out oc
 
 let () =
-  let files = ref [] in
   Arg.parse
     [ "-d", Arg.Int(fun i -> stage := i), "stage"
     ; "-v", Arg.Unit(fun () -> Implementation.verbose := true), "verbose"
     ]
-    (fun s -> files := s :: !files)
-    ("compiler");
-  List.rev !files |> List.iter file
+    file
+    ("compiler")

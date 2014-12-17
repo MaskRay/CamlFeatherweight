@@ -39,10 +39,10 @@ type prim =
 
 and float_prim =
   | Paddfloat
+  | Pnegfloat
   | Psubfloat
   | Pmulfloat
   | Pdivfloat
-  | Pmodfloat
 
 and bool_test =
   | Ptest_eq
@@ -409,10 +409,10 @@ let dump_typ d ty =
 
 let show_float_prim = function
   | Paddfloat -> "Paddfloat"
+  | Pnegfloat -> "Pnegfloat"
   | Psubfloat -> "Psubfloat"
   | Pmulfloat -> "Pmulfloat"
   | Pdivfloat -> "Pdivfloat"
-  | Pmodfloat -> "Pmodfloat"
 
 let show_test_prim = function
   | Peq -> "Peq"

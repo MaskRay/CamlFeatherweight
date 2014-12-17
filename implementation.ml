@@ -1,5 +1,6 @@
 open Back
 open Builtin
+open Emit
 open Error
 open Front
 open Global
@@ -151,22 +152,23 @@ let typing_impl_letdef loc isrec pes =
     submit();
   env
 
-let process_lambda lambda =
+let process_lambda oc lambda =
   if !verbose && !stage = 3 then
     dump_lambda 0 lambda;
   if !stage >= 4 then (
-    let init, func = compile_lambda lambda in
+    let init, fcts as code = compile_lambda lambda in
     if !verbose then (
       print_endline "Initialization";
       dump_zinc init;
       print_endline "";
       print_endline "Code for functions";
-      dump_zinc func;
+      dump_zinc fcts;
       print_endline ""
-    )
+    );
+    emit_phrase oc code
   )
 
-let compile_impl impl =
+let compile_impl oc impl =
   let loc = impl.im_loc in
   reset_te_vars();
   match impl.im_desc with
@@ -176,7 +178,7 @@ let compile_impl impl =
       if !verbose then
         print_impl_expr ty;
       if !stage >= 3 then
-         process_lambda @@ translate_expr e
+         process_lambda oc @@ translate_expr e
   | Pimpl_typedef decl ->
       let ty_decl = typing_impl_typedef loc decl in
       if !verbose then
@@ -186,7 +188,9 @@ let compile_impl impl =
       if !verbose then
         print_impl_letdef env;
       if !stage >= 3 then
-        process_lambda @@ translate_letdef impl.im_loc isrec binds
+        process_lambda oc @@ translate_letdef impl.im_loc isrec binds
 
-let compile_implementation impls =
-  List.iter compile_impl impls
+let compile_implementation oc impls =
+  start_emit_phrase oc;
+  List.iter (compile_impl oc) impls;
+  end_emit_phrase oc;

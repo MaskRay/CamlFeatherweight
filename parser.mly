@@ -145,6 +145,7 @@ let make_apply e1 e2 =
 %left INFIX3 STAR
 %right INFIX4
 %nonassoc prec_constr_app
+%nonassoc below_DOT
 %left DOT
 %right PREFIX
 %right LIDENT UIDENT
@@ -164,6 +165,7 @@ implementation:
 
 structure:
   | structure_tail { $1 }
+  | seq_expr { [make_impl(Pimpl_expr $1)] }
   | seq_expr SEMISEMI structure_tail { make_impl(Pimpl_expr $1)::$3 }
 
 structure_tail:
@@ -362,7 +364,7 @@ constr_longident:
   | LBRACKET RBRACKET { Lident "[]" }
   | FALSE { Lident "false" }
   | TRUE { Lident "true" }
-  | mod_longident { $1 }
+  | mod_longident %prec below_DOT { $1 }
 
 /* pattern */
 

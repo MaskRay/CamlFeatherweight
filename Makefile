@@ -5,3 +5,6 @@ run: runtime/main.c runtime/jumptable.h
 
 runtime/jumptable.h: runtime/instruct.h
 	sed -rn 's/([[:upper:]]+)/\&\&lbl_\1/;T;p' $< > $@
+
+opcode.ml: runtime/instruct.h
+	awk '/[[:upper:]]/{sub(",","");print "let op"$$1"="i++}' $< > $@

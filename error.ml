@@ -113,7 +113,7 @@ let constant_constr_err loc c =
   raise Toplevel
 
 let displacement_overflow () =
-  Printf.eprintf "Phrase too large, a relative displacement has overflowed.\n"
+  Printf.eprintf "Phrase too large, a relative displacement has overflowed.\n";
   raise Toplevel
 
 let duplicate_param_in_type_decl_err loc =
