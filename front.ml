@@ -128,6 +128,7 @@ let divide_tuple_matching arity (rows,paths) =
           | [] -> assert false
         in
         [], make_path arity paths
+    | ({p_desc=Ppat_array args}::ps,act)::rest
     | ({p_desc=Ppat_tuple args}::ps,act)::rest ->
         add_match (go rest) (args@ps,act)
     | ({p_desc=Ppat_any|Ppat_var _}::ps,act)::rest ->
@@ -226,18 +227,21 @@ let rec conquer_matching =
           let constrs, others = divide_constr_matching mat in
           let divs, total1 = conquer_divided_matching constrs
           and lambda, total2 = conquer_matching others in
-          let span = List.length divs
-          and num_cs =
+          let ndivs = List.length divs
+          and span =
             match ul.p_desc with
             | Ppat_constr(id,_) ->
                 let cd = find_constr_desc id in
                 get_span_of_constr cd
             | _ -> assert false
           in
-          if span = num_cs && total1 = Total then
+          if span = ndivs && total1 = Total then
             Lswitch(span, path, divs), Total
           else
             Lstaticcatch(Lswitch(span, path, divs), lambda), total2
+      | Ppat_array p ->
+          let arity = List.length p in
+          conquer_matching @@ divide_tuple_matching arity mat
       | Ppat_tuple p ->
           let arity = List.length p in
           conquer_matching @@ divide_tuple_matching arity mat
@@ -293,7 +297,18 @@ let rec transl_expr env expr =
             try
               transl_access env name
             with Not_found ->
-              Lprim(Pgetglobal id, []) (* TODO *)
+              let vd = find_value_desc id in
+              match vd.info.v_prim with
+              | Not_prim ->
+                  Lprim(Pgetglobal id, []) (* TODO *)
+              | Prim(arity,prim) ->
+                  let rec go args n =
+                    if n >= arity then
+                      Lprim(prim, args)
+                    else
+                      Labstract (go (Lvar n::args) (n+1))
+                  in
+                  go [] 0
         end
     | Pexpr_if(cond,ifso,ifnot) ->
         begin match ifnot with
@@ -348,7 +363,7 @@ let translate_letdef loc isrec binds =
     let ves = List.map (fun (p,e) -> extract_var p, e) binds in
     let dummies =
       make_sequence (fun (v,e) ->
-        Lprim(Psetglobal(Lident v), [Lprim(Pdummy, [])])) ves
+        Lprim(Psetglobal(Lident v), [Lprim(Pdummy 1, [])])) ves
     in
     let updates =
       make_sequence (fun (v,e) ->

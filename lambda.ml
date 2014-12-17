@@ -8,11 +8,11 @@ type lambda =
   | Lif of lambda * lambda * lambda
   | Llet of lambda list * lambda          (* local binding *)
   | Lletrec of lambda list * lambda       (* local recursive binding *)
-  | Lprim of primitive * lambda list
+  | Lprim of prim * lambda list
   | Lsequence of lambda * lambda
   | Lstaticcatch of lambda * lambda
   | Lstaticraise                           (* failure of pattern matching *)
-  | Lswitch of int * lambda * (constr_tag * lambda) list
+  | Lswitch of int * lambda * (constr_tag * lambda) list (* span, selector, matching *)
   | Lvar of int                           (* access local variable *)
 
 let dump_lambda d l =

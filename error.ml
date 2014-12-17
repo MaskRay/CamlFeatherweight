@@ -112,6 +112,10 @@ let constant_constr_err loc c =
     output_constr c;
   raise Toplevel
 
+let displacement_overflow () =
+  Printf.eprintf "Phrase too large, a relative displacement has overflowed.\n"
+  raise Toplevel
+
 let duplicate_param_in_type_decl_err loc =
   Printf.eprintf "%aRepeated type parameter in type declaration.\n"
     output_location loc;
@@ -134,6 +138,10 @@ let ill_shaped_match_err e =
   raise Toplevel
 
 let partial_apply_warn loc = prerr_endline "partial"
+
+let not_implemented () =
+  Printf.eprintf "Not implemented.\n";
+  raise Toplevel
 
 let not_unit_type_warn e actual_ty =
   Printf.eprintf "%aWarning: this expression has type %a,\n\

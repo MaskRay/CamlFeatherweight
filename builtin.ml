@@ -195,14 +195,14 @@ let () =
   ; "/.", Pfloat Pdivfloat
   ];
   List.iter polyop
-  [ "=", Ptest Peq
-  ; "==", Ptest Peql
-  ; "<>", Ptest Pneq
-  ; "!=", Ptest Pneql
-  ; "<", Ptest Plt
-  ; "<=", Ptest Ple
-  ; ">", Ptest Pgt
-  ; ">=", Ptest Pge
+  [ "==", Ptest Ptest_eq
+  ; "!=", Ptest Ptest_neq
+  ; "=", Pccall(2, "equal")
+  ; "<>", Pccall(2, "notequal")
+  ; "<", Pccall(2, "less")
+  ; "<=", Pccall(2, "lessequal")
+  ; ">", Pccall(2, "greater")
+  ; ">=", Pccall(2, "greaterequal")
   ]
 
 (* global value *)

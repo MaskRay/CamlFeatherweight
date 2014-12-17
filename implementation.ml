@@ -1,12 +1,16 @@
+open Back
 open Builtin
 open Error
 open Front
 open Global
+open Instruction
 open Lambda
 open Printer
 open Syntax
 open Type
 open Typing
+
+let stage = ref 4
 
 let verbose = ref true (* FIXME *)
 
@@ -147,6 +151,21 @@ let typing_impl_letdef loc isrec pes =
     submit();
   env
 
+let process_lambda lambda =
+  if !verbose && !stage = 3 then
+    dump_lambda 0 lambda;
+  if !stage >= 4 then (
+    let init, func = compile_lambda lambda in
+    if !verbose then (
+      print_endline "Initialization";
+      dump_zinc init;
+      print_endline "";
+      print_endline "Code for functions";
+      dump_zinc func;
+      print_endline ""
+    )
+  )
+
 let compile_impl impl =
   let loc = impl.im_loc in
   reset_te_vars();
@@ -156,7 +175,8 @@ let compile_impl impl =
       print_endline "Expr";
       if !verbose then
         print_impl_expr ty;
-      dump_lambda 0 @@ translate_expr e
+      if !stage >= 3 then
+         process_lambda @@ translate_expr e
   | Pimpl_typedef decl ->
       let ty_decl = typing_impl_typedef loc decl in
       if !verbose then
@@ -165,7 +185,8 @@ let compile_impl impl =
       let env = typing_impl_letdef loc isrec binds in
       if !verbose then
         print_impl_letdef env;
-      dump_lambda 0 @@ translate_letdef impl.im_loc isrec binds
+      if !stage >= 3 then
+        process_lambda @@ translate_letdef impl.im_loc isrec binds
 
 let compile_implementation impls =
   List.iter compile_impl impls

@@ -14,40 +14,47 @@ type constant =
 
 (* primitive *)
 
-type primitive =
+type prim =
   | Paddint
-  | Pccall
+  | Pccall of int * string
   | Pdivint
-  | Pdummy
+  | Pdummy of int
   | Pfield of int
-  | Pfloat of float_primitive
+  | Pfloat of float_prim
   | Pgetarrayitem
   | Pgetstringitem
   | Pgetglobal of long_ident
   | Pmakeblock of constr_tag
   | Pmodint
   | Pmulint
+  | Pnot
   | Praise
   | Psetarrayitem
   | Psetstringitem
   | Psetfield of int
   | Psetglobal of long_ident
   | Psubint
-  | Ptest of test_primitive
+  | Ptest of bool_test
   | Pupdate
 
-and float_primitive =
+and float_prim =
   | Paddfloat
   | Psubfloat
   | Pmulfloat
   | Pdivfloat
   | Pmodfloat
 
-and test_primitive =
+and bool_test =
+  | Ptest_eq
+  | Ptest_neq
+  | Ptest_int of int test_prim
+  | Ptest_float of float test_prim
+  | Ptest_string of string test_prim
+
+and 'a test_prim =
   | Peq
-  | Peql
   | Pneq
-  | Pneql
+  | Pneqimm of 'a
   | Plt
   | Ple
   | Pgt
@@ -154,7 +161,7 @@ and impl_desc =
 type value_desc = { v_typ: typ; v_prim: prim_desc }
 and prim_desc =
   | Not_prim
-  | Prim of int * primitive
+  | Prim of int * prim
 
 (* instances *)
 
@@ -193,15 +200,18 @@ let rec string_of_long_ident = function
   | Lident id -> id
   | Ldot (l,id) -> string_of_long_ident l ^ "." ^ id
 
-let dump_constant = function
+let show_constant = function
   | Const_char c ->
-      Printf.printf "Const_char %s\n" (Char.escaped c)
+      Printf.sprintf "Const_char %s" (Char.escaped c)
   | Const_int i ->
-      Printf.printf "Const_int %d\n" i
+      Printf.sprintf "Const_int %d" i
   | Const_float f ->
-      Printf.printf "Const_float %f\n" f
+      Printf.sprintf "Const_float %f" f
   | Const_string s ->
-      Printf.printf "Const_string %s\n" (String.escaped s)
+      Printf.sprintf "Const_string %s" (String.escaped s)
+
+let dump_constant c =
+  show_constant c |> print_endline
 
 let rec dump_pattern d pat =
   let rec go d p =
@@ -397,29 +407,56 @@ let dump_typ d ty =
   in
   go d ty
 
+let show_float_prim = function
+  | Paddfloat -> "Paddfloat"
+  | Psubfloat -> "Psubfloat"
+  | Pmulfloat -> "Pmulfloat"
+  | Pdivfloat -> "Pdivfloat"
+  | Pmodfloat -> "Pmodfloat"
+
+let show_test_prim = function
+  | Peq -> "Peq"
+  | Pneq -> "Pneq"
+  | Plt -> "Plt"
+  | Ple -> "Ple"
+  | Pgt -> "Pgt"
+  | Pge -> "Pge"
+
+let show_bool_test = function
+  | Ptest_eq -> "Ptest_eq"
+  | Ptest_neq -> "Ptest_neq"
+  | Ptest_int i ->
+      "Ptest_int " ^
+      (match i with
+      | Pneqimm i -> string_of_int i
+      | _ -> show_test_prim i)
+
+let show_prim = function
+  | Paddint -> "Paddint"
+  | Pccall(a,n) -> Printf.sprintf "Pccall %d %s" a n
+  | Pdivint -> "Pdivint"
+  | Pdummy n -> Printf.sprintf "Pdummy %d" n
+  | Pfield i -> Printf.sprintf "Pfield %d" i
+  | Pfloat f -> show_float_prim f
+  | Pgetarrayitem -> "Pgetarrayitem"
+  | Pgetstringitem -> "Pgetstringitem"
+  | Pgetglobal id -> Printf.sprintf "Pgetglobal %s" (string_of_long_ident id)
+  | Pmakeblock(n,t) -> Printf.sprintf "Pmakeblock %d %d" n t
+  | Pmodint -> "Pmodint"
+  | Pmulint -> "Pmulint"
+  | Pnot -> "Pnot"
+  | Praise -> "Praise"
+  | Psetarrayitem -> "Psetarrayitem"
+  | Psetstringitem -> "Psetstringitem"
+  | Psetfield i -> Printf.sprintf "Psetfield %d" i
+  | Psetglobal id -> Printf.sprintf "Psetglobal %s" (string_of_long_ident id)
+  | Psubint -> "Psbutint"
+  | Ptest t -> show_bool_test t
+  | Pupdate -> "Pupdate"
+
 let dump_prim d prim =
   let rec go d prim =
     Printf.printf "%*s" (2*d) "";
-    match prim with
-    | Paddint -> print_endline "Paddint"
-    | Pccall -> print_endline "Paddint"
-    | Pdivint -> print_endline "Pdivint"
-    | Pdummy -> print_endline "Pdummy"
-    | Pfield i -> Printf.printf "Pfield %d\n" i
-    | Pfloat _ -> ()
-    | Pgetarrayitem -> print_endline "Pgetarrayitem"
-    | Pgetstringitem -> print_endline "Pgetstringitem"
-    | Pgetglobal id -> Printf.printf "Pgetglobal %s\n" (string_of_long_ident id)
-    | Pmakeblock(n,t) -> Printf.printf "Pmakeblock %d %d\n" n t
-    | Pmodint -> print_endline "Pmodint"
-    | Pmulint -> print_endline "Pmulint"
-    | Praise -> print_endline "Praise"
-    | Psetarrayitem -> print_endline "Psetarrayitem"
-    | Psetstringitem -> print_endline "Psetstringitem"
-    | Psetfield i -> Printf.printf "Psetfield %d\n" i
-    | Psetglobal id -> Printf.printf "Psetglobal %s\n" (string_of_long_ident id)
-    | Psubint -> print_endline "Psbutint"
-    | Ptest _ -> ()
-    | Pupdate -> print_endline "Pupdate"
+    show_prim prim |> print_endline
   in
   go d prim

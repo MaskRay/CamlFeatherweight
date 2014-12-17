@@ -5,8 +5,6 @@ open Lexer
 open Syntax
 open Implementation
 
-let stage = ref 2
-
 let dbg_lexer lexbuf =
   match Lexer.main lexbuf with
   | EOF -> "EOF"
@@ -89,7 +87,6 @@ let file f =
   | 1 ->
       let ast = Parser.implementation Lexer.main lexbuf in
       List.iter (Syntax.dump_impl_phrase 0) ast
-      (*Syntax.dump_expression 0 ast*)
   | _ ->
       try
         let impls = Parser.implementation Lexer.main lexbuf in
