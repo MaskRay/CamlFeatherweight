@@ -84,3 +84,5 @@ enum instruction {
   UPDATE,
   XORINT,
 };
+
+extern const char *name_of_instructions[];

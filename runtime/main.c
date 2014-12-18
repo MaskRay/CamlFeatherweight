@@ -1,11 +1,26 @@
+#include "common.h"
 #include "instruct.h"
 #include "value.h"
 #include "prim.h"
+#include "error.h"
+#include "str.h"
+
+#define DEBUG
+
+#ifdef DEBUG
+# undef DIRECT_JUMP
+#endif
 
 //#define DIRECT_JUMP
+#define Arg_stack_size 16384
+#define Ret_stack_size 16384
 
-extern value global_data;
-uvalue first_atoms[256];
+bool trace = false;
+bool verbose = false;
+value global_value;
+hd_t first_atoms[256];
+value *arg_stack_low, *arg_stack_high;
+value *ret_stack_low, *ret_stack_high;
 value *tail;
 
 static inline void modify(value *x, value y)
@@ -13,35 +28,82 @@ static inline void modify(value *x, value y)
   *x = y;
 }
 
-#ifdef DIRECT_JUMP
-# define Inst(name) lbl_##name
-# define Next goto *jumptable[*pc++];
-#else
-# define Inst(name) case name
-# define Next break
-#endif
-
-value alloc(u8 tag, uint32_t size)
+value alloc_with_hd(u8 tag, u32 size, hd_t hd)
 {
   value block = (value)malloc((size+2)*sizeof(value));
-  *(value *)block = Make_header(tag, size);
+  *(value *)block = hd;
   ((value *)block)[1] = (value)tail;
   if (tail)
     tail[1] ^= block;
+  tail = (value *)block;
   return block;
+}
+
+value alloc(u8 tag, u32 size)
+{
+  return alloc_with_hd(tag, size, Make_header(tag, size));
 }
 
 value alloc_block(value env, u32 nmore)
 {
   value newenv = alloc(Tag_val(env), Wosize_val(env) + nmore);
   memcpy((char*)newenv + (2+nmore)*sizeof(value),
-         (char*)env + 2*sizeof(value), Bosize_block(env));
+         (char*)env + 2*sizeof(value), Bosize_val(env));
   return (value)newenv;
 }
 
-value interpret(code_t pc)
+void disasm(code_t pc)
 {
-  value acc, env, *asp, *rsp;
+  u8 op = *pc++;
+  printf("%s ", name_of_instructions[op]);
+  switch (op) {
+  case ACCESS:
+  case DUMMY:
+  case ENDLET:
+  case GETFIELD:
+  case SETFIELD:
+  case UPDATE:
+    printf("%d", *pc++);
+    break;
+  case CCALL1:
+  case CCALL2:
+  case CCALL3:
+  case CCALL4:
+    printf("%s", name_of_cprims[*pc++]);
+    break;
+  case CONSTINT8:
+    printf("%d", *(i8*)pc++);
+    break;
+  case GETGLOBAL:
+  case SETGLOBAL:
+    printf("[%d]", pu16(pc));
+    pc += 2;
+    break;
+  case CONSTINT16:
+    printf("[%d]", pi16(pc));
+    pc += 2;
+    break;
+  case BRANCH:
+  case BRANCHIF:
+  case BRANCHIFEQ:
+  case BRANCHIFGE:
+  case BRANCHIFGT:
+  case BRANCHIFLE:
+  case BRANCHIFLT:
+  case CUR:
+    printf("0x%08x", pc+pi16(pc));
+    pc += 2;
+    break;
+  }
+  putchar('\n');
+}
+
+value interpret(code_t code)
+{
+  value acc = Val_int(0), env = Atom(0),
+        *asp = arg_stack_high,
+        *rsp = ret_stack_high;
+  code_t pc = code;
   value tmp;
 
 #define retsp ((struct return_frame *)rsp)
@@ -49,18 +111,30 @@ value interpret(code_t pc)
 #define Pop_ret_frame ( rsp = (value*)((char*)rsp+sizeof(struct return_frame)) )
 
 #ifdef DIRECT_JUMP
+# define Inst(name) lbl_##name
+# define Next goto *jumptable[*pc++];
   static void *jumptable[] = {
     #include "jumptable.h"
   };
   Next;
 #else
+# define Inst(name) case name
+# define Next break
   for(;;) {
+# ifdef DEBUG
+    if (trace)
+      disasm(pc);
+# endif
     switch (*pc++) {
 #endif
-    Inst(ACCESS): {
-      u8 i = *pc++;
-      acc = Field(env, i);
-    }
+    Inst(ACCESS):
+      acc = Field(env, *pc++);
+      Next;
+    Inst(ADDFLOAT):
+      tmp = alloc(Double_tag, Double_wosize);
+      *(double*)Op_val(tmp) = Double_val(acc) + Double_val(*asp++);
+      acc = tmp;
+      Next;
     Inst(ADDINT):
       acc += *asp++ - 1;
       Next;
@@ -73,7 +147,7 @@ value interpret(code_t pc)
       retsp->env = env;
       pc = Code_val(acc);
       env = alloc_block(Env_val(acc), 1);
-      Field(env, 0) = *--asp;
+      Field(env, 0) = *asp++;
       // TODO check stack
       Next;
     Inst(ARRAYLENGTH):
@@ -131,22 +205,22 @@ value interpret(code_t pc)
         pc += sizeof(i16);
       Next;
     Inst(CCALL1):
-      acc = cprims[pu16(pc)](acc);
-      pc += sizeof(u16);
+      acc = cprims[pu8(pc)](acc);
+      pc += sizeof(u8);
       Next;
     Inst(CCALL2):
-      acc = cprims[pu16(pc)](acc, asp[0]);
-      pc += sizeof(u16);
+      acc = cprims[pu8(pc)](acc, asp[0]);
+      pc += sizeof(u8);
       asp += 1;
       Next;
     Inst(CCALL3):
-      acc = cprims[pu16(pc)](acc, asp[0], asp[1]);
-      pc += sizeof(u16);
+      acc = cprims[pu8(pc)](acc, asp[0], asp[1]);
+      pc += sizeof(u8);
       asp += 2;
       Next;
     Inst(CCALL4):
-      acc = cprims[pu16(pc)](acc, asp[0], asp[1], asp[2]);
-      pc += sizeof(u16);
+      acc = cprims[pu8(pc)](acc, asp[0], asp[1], asp[2]);
+      pc += sizeof(u8);
       asp += 3;
       Next;
     Inst(CONSTINT8):
@@ -163,21 +237,29 @@ value interpret(code_t pc)
       Env_val(acc) = env;
       pc += sizeof(i16);
       Next;
+    Inst(DIVFLOAT):
+      tmp = alloc(Double_tag, Double_wosize);
+      *(double*)Op_val(tmp) = Double_val(acc) / Double_val(*asp++);
+      acc = tmp;
+      Next;
     Inst(DIVINT):
       // TODO exn
       acc = Val_int((acc-1)/(*asp++-1));
       Next;
     Inst(DUMMY): {
       u8 n = *pc++;
-      value newenv = alloc_block(env, n);
+      env = alloc_block(env, n);
       while (n--)
-        Field(newenv, n) = Val_int(0);
-      env = newenv;
+        Field(env, n) = Val_int(0);
+      Next;
     }
     Inst(ENDLET): {
       u8 n = *pc++;
       uint32_t size = Wosize_val(env)-n;
-      alloc(Tag_hd
+      value newenv = alloc(0, size);
+      REP(i, size)
+        Field(newenv, i+n) = Field(env, i);
+      env = newenv;
       Next;
     }
     Inst(EQ):
@@ -186,18 +268,15 @@ value interpret(code_t pc)
     Inst(EQSTRING):
       acc = Atom(string_compare(acc, *asp++) == 0);
       Next;
-    Inst(EQFLOAT): {
+    Inst(EQFLOAT):
       acc = Atom(Double_val(acc) == Double_val(*asp++));
       Next;
-    }
-    Inst(GEFLOAT): {
+    Inst(GEFLOAT):
       acc = Atom(Double_val(acc) >= Double_val(*asp++));
       Next;
-    }
-    Inst(GEINT): {
+    Inst(GEINT):
       acc = Atom(acc >= *asp++);
       Next;
-    }
     Inst(GESTRING):
       acc = Atom(string_compare(acc, *asp++) >= 0);
       Next;
@@ -208,7 +287,7 @@ value interpret(code_t pc)
       acc = Field(acc, *pc++);
       Next;
     Inst(GETGLOBAL):
-      acc = Field(global_data, pu16(pc));
+      acc = Field(global_value, pu16(pc));
       pc += sizeof(u16);
       Next;
     Inst(GETSTRINGITEM):
@@ -224,6 +303,7 @@ value interpret(code_t pc)
         env = alloc_block(env, 1);
         Field(env, 0) = *asp++;
       }
+      Next;
     Inst(GTFLOAT):
       acc = Atom(Double_val(acc) > Double_val(*asp++));
       Next;
@@ -277,17 +357,32 @@ value interpret(code_t pc)
       acc = block;
       Next;
     }
+    Inst(MAKESTRING):
+      // TODO
     Inst(MODINT):
       acc = (acc-1) % (*asp++-1) + 1;
       Next;
+    Inst(MULFLOAT):
+      tmp = alloc(Double_tag, Double_wosize);
+      *(double*)Op_val(tmp) = Double_val(acc) * Double_val(*asp++);
+      acc = tmp;
+      Next;
     Inst(MULINT):
       acc = (acc>>1) * (*asp++-1) + 1;
+      Next;
+    Inst(NEGFLOAT):
+      tmp = alloc(Double_tag, Double_wosize);
+      *(double*)Op_val(tmp) = - Double_val(acc);
+      acc = tmp;
       Next;
     Inst(NEGINT):
       acc = 2-acc;
       Next;
     Inst(NEQ):
       acc = Atom(acc != *asp++);
+      Next;
+    Inst(NEQFLOAT):
+      acc = Atom(Double_val(acc) != Double_val(*asp++));
       Next;
     Inst(NEQSTRING):
       acc = Atom(string_compare(acc, *asp++) == 0);
@@ -313,6 +408,7 @@ value interpret(code_t pc)
       *--asp = MARK;
       Next;
     Inst(RAISE):
+      not_implemented("RAISE");
     Inst(RETURN):
       if (*asp == MARK) {
         asp++;
@@ -337,7 +433,7 @@ value interpret(code_t pc)
       Next;
     }
     Inst(SETGLOBAL):
-      modify(&Field(global_data, pu16(pc)), acc);
+      modify(&Field(global_value, pu16(pc)), acc);
       pc += sizeof(u16);
       Next;
     Inst(SETSTRINGITEM):
@@ -348,12 +444,17 @@ value interpret(code_t pc)
       acc = 1 | (acc-1) << Int_val(*asp++);
       Next;
     Inst(SHRINT):
-      acc = 1 | (uvalue)(acc-1) >> Int_val(*asp++);
+      acc = 1 | (uvalue)(acc-1u) >> Int_val(*asp++);
       Next;
     Inst(STOP):
       return acc;
     Inst(STRINGLENGTH):
       acc = Val_int(string_length(acc));
+      Next;
+    Inst(SUBFLOAT):
+      tmp = alloc(Double_tag, Double_wosize);
+      *(double*)Op_val(tmp) = Double_val(acc) - Double_val(*asp++);
+      acc = tmp;
       Next;
     Inst(SUBINT): {
       acc -= *asp++ - 1;
@@ -361,7 +462,7 @@ value interpret(code_t pc)
     }
     Inst(SWITCH):
       pc++;
-      pc += pi16(pc+acc-1);
+      pc += pi16(pc+Tag_val(acc)*2);
       Next;
     Inst(TAGOF):
       acc = Val_int(Tag_val(acc));
@@ -370,14 +471,12 @@ value interpret(code_t pc)
 termapply: {
       pc = Code_val(acc);
       env = alloc_block(Env_val(acc), 1);
-      Field(env, 0) = *--asp;
+      Field(env, 0) = *asp++;
       Next;
     }
     Inst(UPDATE): {
-      tmp = *asp++;
-      Tag_val(acc) = Tag_val(tmp);
-      REP(i, Wosize_val(tmp))
-        modify(&Field(acc, i), Field(tmp, i));
+      u8 n = *pc++;
+      modify(&Field(env, n), acc);
       Next;
     }
     Inst(XORINT):
@@ -390,14 +489,146 @@ termapply: {
 #endif
 }
 
-static void init_atoms()
+static void init_atoms(void)
 {
   REP(i, 256)
     first_atoms[i] = Make_header(i, 0);
 }
 
+static void init_stacks(void)
+{
+  arg_stack_low = malloc(Arg_stack_size);
+  arg_stack_high = arg_stack_low + Arg_stack_size/sizeof(value);
+  ret_stack_low = malloc(Arg_stack_size);
+  ret_stack_high = ret_stack_low + Ret_stack_size/sizeof(value);
+}
+
+static void init_global_value(void)
+{
+}
+
+#define FAILED_TO_OPEN -1
+#define BAD_MAGIC -2
+#define TRUNCATED_FILE -3
+#define INVALID_EXE -4
+#define SYSERROR -5
+
+int run(const char *filename)
+{
+  char buf[4];
+  value val;
+  int fd = open(filename, O_RDONLY);
+  int t;
+  if (fd < 0)
+    return FAILED_TO_OPEN;
+  if (read(fd, buf, 4) != 4 || memcmp(buf, MAGIC, 4))
+    return BAD_MAGIC;
+  u32 global_value_off, global_value_num, size;
+  if (read(fd, &global_value_off, 4) != 4 || read(fd, &global_value_num, 4) != 4)
+    return TRUNCATED_FILE;
+  if (lseek(fd, global_value_off, SEEK_SET) < 0)
+    return TRUNCATED_FILE;
+  global_value = alloc(0, global_value_num);
+  REP(i, global_value_num) {
+    if (read(fd, buf, 1) != 1)
+      return TRUNCATED_FILE;
+    if (buf[0] == 1) {
+      read(fd, &val, 4);
+      if (val % 2 == 0)
+        return INVALID_EXE;
+      Field(global_value, i) = val;
+    } else if (buf[0] == 0) {
+      if (read(fd, &val, 4) != 4)
+        return TRUNCATED_FILE;
+      value block;
+      switch (Tag_hd(val)) {
+      case String_tag:
+        size = String_wosize_hd(val);
+        block = alloc_with_hd(Tag_hd(val), size, String_make_header(val, size));
+        break;
+      default:
+        size = Wosize_hd(val);
+        block = alloc(Tag_hd(val), size);
+        break;
+      }
+      REP(j, size) {
+        if (read(fd, &val, 4) != 4)
+          return TRUNCATED_FILE;
+        Field(block, j) = val;
+      }
+      Field(global_value, i) = block;
+    } else
+      return INVALID_EXE;
+  }
+
+  if (lseek(fd, 4*3, SEEK_SET) < 0)
+    return SYSERROR;
+  u32 code_len = global_value_off-4*3;
+  code_t code = malloc(code_len);
+  if (! code)
+    return SYSERROR;
+  if (read(fd, code, code_len) != code_len)
+    return TRUNCATED_FILE;
+  value r = interpret(code);
+  if (trace)
+    fprintf(stderr, "+ acc=%d\n", r);
+  return 0;
+}
+
+static void print_help(const char *argv0)
+{
+  fprintf(stderr, "Usage: %s\n", basename(argv0));
+}
+
 int main(int argc, char *argv[])
 {
+  for(;;) {
+    static struct option long_options[] = {
+      {"trace",   no_argument, 0, 't'},
+      {"verbose", no_argument, 0, 'v'},
+      {0,         0,           0,  0 },
+    };
+    int opt, c = getopt_long(argc, argv, "htv", long_options, &opt);
+    if (c == -1) break;
+    switch (c) {
+    case 'h':
+      print_help(argv[0]);
+      return 0;
+    case 't':
+      trace = true;
+      break;
+    case 'v':
+      verbose = true;
+      break;
+    case '?':
+      print_help(argv[0]);
+      return 1;
+    }
+  }
+  if (optind == argc)
+    fatal_error("No bytecode file specified.");
+
   init_atoms();
+  init_stacks();
+  init_global_value();
+  int r = run(argv[optind]);
+  if (r < 0)
+    switch (r) {
+    case FAILED_TO_OPEN:
+      fatal_error_fmt("Failed to open \"%s\"\n", strerror(errno));
+      break;
+    case TRUNCATED_FILE:
+      fatal_error_fmt("\"%s\" seems to be truncated\n", argv[optind]);
+      break;
+    case INVALID_EXE:
+      fatal_error_fmt("\"%s\" is not a bytecode executable file\n", argv[optind]);
+      break;
+    case BAD_MAGIC:
+      fatal_error_fmt("\"%s\" is not a bytecode executable file: missing magic \"%s\"\n", argv[optind], MAGIC);
+      break;
+    case SYSERROR:
+      fatal_error(strerror(errno));
+      break;
+    }
   return 0;
 }

@@ -24,3 +24,15 @@ c_primitive cprims[] = {
   input_char,
   output_char,
 };
+
+const char *name_of_cprims[] = {
+  "compare",
+  "equal",
+  "notequal",
+  "less",
+  "lessequal",
+  "greater",
+  "greaterequal",
+  "input_char",
+  "output_char",
+};

@@ -233,4 +233,10 @@ let () =
   ; info={ v_typ=type_arrow type_string (type_arrow type_int (type_arrow type_char type_unit))
          ; v_prim=Prim(3, Psetarrayitem)
          }
+  };
+  add_global_value
+  { qualid=Lident "output_char"
+  ; info={ v_typ=type_arrow type_char type_unit
+         ; v_prim=Prim(1, Pccall(1, "output_char"))
+         }
   }

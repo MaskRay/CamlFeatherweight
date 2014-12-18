@@ -11,3 +11,9 @@ ML value output_char(value ch)
   putchar(Int_val(ch));
   return Val_unit;
 }
+
+ML value print_string(value ch)
+{
+  putchar(Int_val(ch));
+  return Val_unit;
+}

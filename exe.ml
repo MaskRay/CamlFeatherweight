@@ -27,3 +27,17 @@ let name_tag tag =
     "string"
   else
     raise @@ Invalid_argument(Printf.sprintf "Unknown tag %d" tag)
+
+let input_bin_int ic =
+  let b0 = input_byte ic |> Int32.of_int in
+  let b1 = input_byte ic |> Int32.of_int in
+  let b2 = input_byte ic |> Int32.of_int in
+  let b3 = input_byte ic |> Int32.of_int in
+  Int32.(mul b3 256l |> add b2 |> mul 256l |> add b1 |> mul 256l
+  |> add b0 |> to_int)
+
+let output_bin_int oc i =
+  output_byte oc (i land 255);
+  output_byte oc (i lsr 8 land 255);
+  output_byte oc (i lsr 16 land 255);
+  output_byte oc (i lsr 24 land 255)

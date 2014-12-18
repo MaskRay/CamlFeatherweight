@@ -303,8 +303,8 @@ simple_expr:
   | simple_expr DOT LBRACKET seq_expr RBRACKET {
       make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "String", "get"))),
         [$1; $4])) }
-  | LPAREN expr RPAREN { $2 }
-  | LPAREN expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }
+  | LPAREN seq_expr RPAREN { $2 }
+  | LPAREN seq_expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }
   | LBRACKET expr_semi_list RBRACKET { make_expr_list($2) }
   | LBRACKETBAR expr_semi_list BARRBRACKET { make_expr(Pexpr_array($2)) }
   | LBRACKETBAR BARRBRACKET { make_expr(Pexpr_array []) }

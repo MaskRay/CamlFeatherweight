@@ -1,4 +1,5 @@
 open Error
+open Exe
 open Instruction
 open Opcode
 open Syntax
@@ -163,6 +164,8 @@ let rec emit code =
             o opDUMMY; o n
         | Pfield n ->
             o opGETFIELD; o n
+        | Praise ->
+            o opRAISE
         | Psetfield n ->
             o opSETFIELD; o n
         | Ptest t ->
@@ -177,6 +180,7 @@ let rec emit code =
                 | Ple -> opLEINT
                 | Pgt -> opGTINT
                 | Pge -> opGEINT
+                | Pneqimm _ -> assert false
                 end
             | Ptest_float t ->
                 begin match t with
@@ -186,6 +190,7 @@ let rec emit code =
                 | Ple -> opLEFLOAT
                 | Pgt -> opGTFLOAT
                 | Pge -> opGEFLOAT
+                | Pneqimm _ -> assert false
                 end
             | Ptest_string t ->
                 begin match t with
@@ -195,6 +200,7 @@ let rec emit code =
                 | Ple -> opLESTRING
                 | Pgt -> opGTSTRING
                 | Pge -> opGESTRING
+                | Pneqimm _ -> assert false
                 end
             end
         | _ ->
@@ -215,7 +221,7 @@ let rec emit code =
     | Kswitch ls ->
         o opSWITCH;
         o (Array.length ls);
-        let orig = Bytes.length !out_buf in
+        let orig = !out_pos in
         Array.iter (out_label_with_orig orig) ls
     | Ktermapply -> o opTERMAPPLY
     | Ktest(tst,l) ->
@@ -249,7 +255,7 @@ let abs_out_pos = ref 0
 let start_emit_phrase oc =
   phr_idx := [];
   output_string oc "meow";
-  output_binary_int oc 0; (* placeholder of size *)
+  output_bin_int oc 0; (* placeholder of size *)
   abs_out_pos := 8
 
 let emit_phrase oc (init,fcts) =
@@ -275,4 +281,4 @@ let emit_phrase oc (init,fcts) =
 let end_emit_phrase oc =
   output_value oc (List.rev !phr_idx);
   seek_out oc 4;
-  output_binary_int oc !abs_out_pos
+  output_bin_int oc !abs_out_pos

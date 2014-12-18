@@ -56,10 +56,11 @@ let show_zinc =
       Array.iteri (fun i l ->
         if i > 0 then
           Buffer.add_string buf "; ";
-        Buffer.add_string buf (string_of_int i)
+        Buffer.add_string buf (string_of_int l)
       ) ls;
       "Kswitch[" ^ Buffer.contents buf ^ "]"
   | Ktermapply -> "Ktermapply"
+  | Ktest(tst,l) -> Printf.sprintf "Ktest(%s,%d)" (show_bool_test tst) l
   | Kupdate i -> Printf.sprintf "Kupdate(%d)" i
 
 let dump_zinc cs =

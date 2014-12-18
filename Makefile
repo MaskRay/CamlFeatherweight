@@ -1,7 +1,7 @@
-CFLAGS += -std=c11
+CFLAGS += -std=gnu11 -m32 -g3
 
-run: runtime/main.c runtime/jumptable.h
-	$(LINK.c) -I runtime $< -o $@
+run: runtime/main.c runtime/io.c runtime/error.c runtime/instruct.c runtime/compare.c runtime/prim.c runtime/str.c runtime/jumptable.h
+	$(LINK.c) -I runtime $(filter %.c,$^) -o $@
 
 runtime/jumptable.h: runtime/instruct.h
 	sed -rn 's/([[:upper:]]+)/\&\&lbl_\1/;T;p' $< > $@

@@ -36,7 +36,28 @@ let init_jumptbl () =
       if n >= 32768 then n-65536
       else n
     in
-    Printf.printf "0x%04x" (pos+n) in
+    Printf.printf "0x%04x" (pos+n)
+  in
+  let makeblock ic pos =
+    Printf.printf "0x%08x" (input_bin_int ic)
+  in
+  let switch ic pos =
+    let nalts = input_byte ic in
+    print_char '[';
+    for i = 1 to nalts do
+      let b0 = input_byte ic in
+      let b1 = input_byte ic in
+      let n = b0 + b1 lsl 8 in
+      let n =
+        if n >= 32768 then n-65536
+        else n
+      in
+      if i > 1 then
+        print_string "; ";
+      Printf.printf "%04x" (pos+1+n);
+    done;
+    print_char ']'
+  in
   jumptbl.(opACCESS) <- u8;
   jumptbl.(opBRANCH) <- rel16;
   jumptbl.(opBRANCHIF) <- rel16;
@@ -58,8 +79,10 @@ let init_jumptbl () =
   jumptbl.(opENDLET) <- u8;
   jumptbl.(opGETFIELD) <- u8;
   jumptbl.(opGETGLOBAL) <- u16;
+  jumptbl.(opMAKEBLOCK) <- makeblock;
   jumptbl.(opSETFIELD) <- u8;
   jumptbl.(opSETGLOBAL) <- u16;
+  jumptbl.(opSWITCH) <- switch;
   jumptbl.(opUPDATE) <- u8
 
 let print_code ic len =
@@ -135,14 +158,14 @@ let dump filename =
     match Bytes.sub_string buf 0 4 with
     | "meow" ->
         print_endline "Relocatable file";
-        let phr_idx_off = input_binary_int ic in
+        let phr_idx_off = input_bin_int ic in
         seek_in ic phr_idx_off;
         let phr_idx = (input_value ic : compiled_phrase list) in
         List.iter (print_phr_entry ic) phr_idx
     | "woem" ->
         print_endline "Executable";
-        let global_off = input_binary_int ic in
-        let global_num = input_binary_int ic in
+        let global_off = input_bin_int ic in
+        let global_num = input_bin_int ic in
         let code_len = global_off-12 in
         Printf.printf "\nLength %d\n" code_len;
         print_code ic code_len;

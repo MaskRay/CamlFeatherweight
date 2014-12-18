@@ -110,6 +110,10 @@ let dump_data oc =
           o (Int32.of_int pad)
         done
   ) !entries;
+  for i = !last+1 to Hashtbl.length global_tbl - 1 do
+    o 1l;
+    oooo 1l
+  done;
   output oc !buf 0 !pos
 
 let link objs exe =
@@ -123,7 +127,7 @@ let link objs exe =
     let ic = open_in_bin obj in
     if input ic buf 0 4 <> 4 || Bytes.sub_string buf 0 4 <> "meow" then
       raise Invalid;
-    let phr_idx_off = input_binary_int ic in
+    let phr_idx_off = input_bin_int ic in
     seek_in ic phr_idx_off;
     let phr_idx = (input_value ic : compiled_phrase list) in
     if first then
@@ -163,15 +167,15 @@ let link objs exe =
   in
   List.iter (scan true) objs;
   output_bytes oc "woem";
-  output_binary_int oc 0; (* global data offset *)
-  output_binary_int oc 0; (* global data num *)
+  output_bin_int oc 0; (* global data offset *)
+  output_bin_int oc 0; (* global data num *)
   List.iter (scan false) objs;
   output_byte oc opSTOP;
   let global_off = pos_out oc in
   dump_data oc;
   seek_out oc 4;
-  output_binary_int oc global_off;
-  output_binary_int oc !global_tbl_used
+  output_bin_int oc global_off;
+  output_bin_int oc !global_tbl_used
 
 let () =
   Array.iteri (fun i name -> Hashtbl.replace prim_tbl name i) Cprim.name_of_prims;

@@ -6,6 +6,7 @@
 
 typedef intptr_t value;
 typedef uintptr_t uvalue;
+typedef uint32_t hd_t;
 typedef unsigned char u8;
 typedef unsigned char *code_t;
 
@@ -16,6 +17,8 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 
+#define pi8(p) (*(int8_t*)(p))
+#define pu8(p) (*(uint8_t*)(p))
 #define pi16(p) (*(int16_t*)(p))
 #define pu16(p) (*(uint16_t*)(p))
 #define pi32(p) (*(int32_t*)(p))
@@ -53,17 +56,18 @@ bits  63  36 35    8 7   0
 */
 
 #define Gcsize_offset 8
-#if __WORDSIZE == 32
+#if 1 || __WORDSIZE == 32
 # define Size_offset 20
 #else
 # define Size_offset 36
 #endif
-#define Make_header(tag, size) (tag | (uvalue)(size) << Size_offset)
+#define Make_header(tag, size) (tag | (value)(size) << Size_offset)
 #define Wosize_hd(x) (x >> Size_offset)
 #define Wosize_val(v) Wosize_hd(Hd_val(v))
 #define Bosize_hd(x) ((x >> Size_offset) * sizeof(value))
-#define Bosize_block(x) (Bosize_hd(x) + 2 * sizeof(value))
-#define Hd_val(x) (*(uvalue*)x)
+#define Bosize_val(v) Bosize_hd(Hd_val(v))
+#define Bosize_block(v) (Bosize_val(v) + 2 * sizeof(value))
+#define Hd_val(x) (*(hd_t*)x)
 #define Op_val(x) ((value*)(x)+2)
 #define Field(x, i) (((value*)(x))[i+2])
 
@@ -81,7 +85,7 @@ bits  63  36 35    8 7   0
 // 1: tag < No_scan_tag: fields
 
 // 1-0: atom: 0-tuples
-extern uvalue first_atoms[];
+extern hd_t first_atoms[];
 #define Atom(tag) ((value)&first_atoms[tag])
 #define Val_unit Atom(0)
 #define Val_false Atom(0)
@@ -101,6 +105,8 @@ extern uvalue first_atoms[];
 
 // 2-1: string
 #define String_tag (No_scan_tag+1)
+#define String_wosize_hd(hd) (hd >> Gcsize_offset)
+#define String_make_header(tag, size) (tag | (value)(size) << Gcsize_offset)
 
 static inline u32 string_length(value s)
 { return Hd_val(s) >> Gcsize_offset; }
@@ -126,6 +132,7 @@ static inline void array_setitem(value s, intptr_t i, value c)
 // 2-3: float (represented by double)
 #define Double_tag (No_scan_tag+3)
 #define Double_val(v) (*(double*)((value*)(v)+2))
+#define Double_wosize 2
 
 /*
  * stack
