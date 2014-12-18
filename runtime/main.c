@@ -150,11 +150,11 @@ value interpret(code_t pc)
       asp += 3;
       Next;
     Inst(CONSTINT8):
-      acc = pi8(pc);
+      acc = pi8(pc)*2+1;
       pc += sizeof(i8);
       Next;
     Inst(CONSTINT16):
-      acc = pi16(pc);
+      acc = pi16(pc)*2+1;
       pc += sizeof(i16);
       Next;
     Inst(CUR):

@@ -52,20 +52,21 @@ let define_label l =
       (!label_tbl).(l) <- Label_defined curr_pos;
       List.iter (fun (pos,orig) ->
         out_pos := pos;
-        o (curr_pos-orig)
-      ) ls
+        oo (curr_pos-orig)
+      ) ls;
+      out_pos := curr_pos
 
 let out_label_with_orig orig l =
   if l >= Array.length !label_tbl then
     extend_label_tbl l;
   match (!label_tbl).(l) with
   | Label_defined pos ->
-      o (pos-orig)
+      oo (pos-orig)
   | Label_undefined ls ->
       (!label_tbl).(l) <- Label_undefined ((!out_pos,orig)::ls);
-      o 0
+      oo 0
 
-let out_label = out_label_with_orig !out_pos
+let out_label l = out_label_with_orig !out_pos l
 
 (* relocation *)
 
@@ -98,12 +99,12 @@ let slot_for_setglobal id =
 
 let rec emit code =
   let out_const_int i =
-    if (-128-1)/2 <= i && i <= (127-1)/2 then (
+    if -128 <= i && i < 128 then (
       o opCONSTINT8;
-      o (i+i+1)
-    ) else if (-32768-1)/2 <= i && i <= (32767-1)/2 then (
+      o i
+    ) else if -32768 <= i && i < 32768 then (
       o opCONSTINT16;
-      oo (i+i+1)
+      oo i
     ) else (
       o opGETGLOBAL;
       slot_for_const (Const_int i)
@@ -130,10 +131,10 @@ let rec emit code =
   let inst = function
     | Kaccess n -> o opACCESS; o n
     | Kapply -> o opAPPLY
-    | Kbranch l -> o opBRANCH; o l
-    | Kbranchif l -> o opBRANCHIF; o l
-    | Kbranchifnot l -> o opBRANCHIFNOT; o l
-    | Kcur l -> o opCUR; o l
+    | Kbranch l -> o opBRANCH; out_label l
+    | Kbranchif l -> o opBRANCHIF; out_label l
+    | Kbranchifnot l -> o opBRANCHIFNOT; out_label l
+    | Kcur l -> o opCUR; out_label l
     | Kdummy n -> o opDUMMY; o n
     | Kendlet n -> o opENDLET; o n
     | Kgetglobal id -> o opGETGLOBAL; slot_for_getglobal id
