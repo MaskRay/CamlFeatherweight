@@ -15,7 +15,7 @@ let o b =
     Bytes.blit !out_buf 0 newbuf 0 len;
     out_buf := newbuf
   );
-  Bytes.set !out_buf !out_pos (char_of_int b);
+  Bytes.set !out_buf !out_pos (b land 255 |> char_of_int);
   incr out_pos
 
 let oo w =
@@ -79,7 +79,7 @@ type reloc_entry =
 let relocs = ref []
 
 let enter_reloc info =
-  relocs := (Bytes.length !out_buf, info) :: !relocs
+  relocs := (!out_pos, info) :: !relocs
 
 let slot_for_prim name =
   enter_reloc (Reloc_prim name);
@@ -112,7 +112,7 @@ let rec emit code =
   in
   let out_tag (_,t) = o t in
   let out_header tag n =
-    if Sys.word_size = 32 then (
+    if true || Sys.word_size = 32 then (
       out_tag tag; (* [0,8) *)
       o 0; (* [8,16) *)
       o (n lsl 4); (* [16,24) *)
@@ -154,9 +154,10 @@ let rec emit code =
         | Pdivint -> o opDIVINT
         | Pmodint -> o opMODINT
         | Pccall(arity,name) ->
-            if arity <= 4 then
-              o (opCCALL1+arity-1)
-            else
+            if arity <= 4 then (
+              o (opCCALL1+arity-1);
+              slot_for_prim name
+            ) else
               not_implemented()
         | Pdummy n ->
             o opDUMMY; o n
@@ -207,6 +208,7 @@ let rec emit code =
         | Const_char x -> out_const_int (int_of_char x)
         | Const_int x -> out_const_int x
         | Const_float x -> o opGETGLOBAL; slot_for_const c
+        | Const_string x -> o opGETGLOBAL; slot_for_const c
         end
     | Kreturn -> o opRETURN
     | Ksetglobal id -> o opSETGLOBAL; slot_for_setglobal id
@@ -271,6 +273,6 @@ let emit_phrase oc (init,fcts) =
   abs_out_pos := !abs_out_pos + !out_pos
 
 let end_emit_phrase oc =
-  output_value oc !phr_idx;
+  output_value oc (List.rev !phr_idx);
   seek_out oc 4;
   output_binary_int oc !abs_out_pos

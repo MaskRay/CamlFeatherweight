@@ -21,7 +21,6 @@ c_primitive cprims[] = {
   lessequal,
   greater,
   greaterequal,
-
   input_char,
   output_char,
 };
