@@ -27,6 +27,7 @@ type prim =
   | Pgetglobal of long_ident
   | Pmakearray of bool
   | Pmakeblock of constr_tag
+  | Pmakestring
   | Pmodint
   | Pmulint
   | Pnot
@@ -458,6 +459,7 @@ let show_prim = function
   | Pgetglobal id -> Printf.sprintf "Pgetglobal %s" (string_of_long_ident id)
   | Pmakearray init -> Printf.sprintf "Pmakearray %b" init
   | Pmakeblock(n,t) -> Printf.sprintf "Pmakeblock %d %d" n t
+  | Pmakestring -> "Pmakestring"
   | Pmodint -> "Pmodint"
   | Pmulint -> "Pmulint"
   | Pnot -> "Pnot"

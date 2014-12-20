@@ -235,6 +235,12 @@ let () =
          }
   };
   add_global_value
+  { qualid=Ldot(Lident "String", "make")
+  ; info={ v_typ=type_arrow type_int (type_arrow type_char type_string)
+         ; v_prim=Prim(2, Pmakestring)
+         }
+  };
+  add_global_value
   { qualid=Ldot(Lident "String", "get")
   ; info={ v_typ=type_arrow type_string (type_arrow type_int type_char)
          ; v_prim=Prim(2, Pgetstringitem)

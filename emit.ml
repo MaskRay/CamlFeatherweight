@@ -175,6 +175,8 @@ let rec emit code =
         | Pmakearray init ->
             o opMAKEARRAY;
             o (if init then 1 else 0)
+        | Pmakestring ->
+            o opMAKESTRING
         | Praise ->
             o opRAISE
         | Psetfield n ->
