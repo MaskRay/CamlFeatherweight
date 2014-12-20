@@ -28,7 +28,7 @@ static inline void modify(value *x, value y)
   *x = y;
 }
 
-value alloc_with_hd(u8 tag, u32 size, hd_t hd)
+value alloc_with_hd(u32 size, hd_t hd)
 {
   value block = (value)malloc((size+2)*sizeof(value));
   *(value *)block = hd;
@@ -41,7 +41,7 @@ value alloc_with_hd(u8 tag, u32 size, hd_t hd)
 
 value alloc(u8 tag, u32 size)
 {
-  return alloc_with_hd(tag, size, Make_header(tag, size));
+  return alloc_with_hd(size, Make_header(tag, size));
 }
 
 value alloc_block(value env, u32 nmore)
@@ -326,7 +326,8 @@ value interpret(code_t code)
       acc = Atom(string_compare(acc, *asp++) <= 0);
       Next;
     Inst(LET):
-      *--rsp = acc;
+      env = alloc_block(env, 1);
+      Field(env, 0) = acc;
       Next;
     Inst(LTFLOAT):
       acc = Atom(Double_val(acc) < Double_val(*asp++));
@@ -338,11 +339,18 @@ value interpret(code_t code)
       acc = Atom(string_compare(acc, *asp++) < 0);
       Next;
     Inst(MAKEARRAY): {
-      uint32_t size = Int_val(acc);
-      value block = alloc(Array_tag, 1+size);
+      u8 init = *pc++;
+      u32 size = Int_val(acc);
+      value block = alloc_with_hd(size+1, Array_make_header(size+1));
       Field(block, 0) = 0; // actual color used by GC
-      for (uint32_t i = 1; i <= size; i++)
-        Field(block, i) = *asp;
+      if (init)
+        for (uint32_t i = 1; i <= size; i++)
+          Field(block, i) = *asp++;
+      else {
+        for (uint32_t i = 1; i <= size; i++)
+          Field(block, i) = *asp;
+        asp++;
+      }
       acc = block;
       Next;
     }
@@ -426,6 +434,7 @@ value interpret(code_t code)
     Inst(SETARRAYITEM):
       array_setitem(acc, Int_val(asp[0]), asp[1]);
       asp += 2;
+      acc = Atom(0);
       Next;
     Inst(SETFIELD): {
       value *ptr = &Field(acc, *pc++);
@@ -545,7 +554,7 @@ int run(const char *filename)
       switch (Tag_hd(val)) {
       case String_tag:
         size = String_wosize_hd(val);
-        block = alloc_with_hd(Tag_hd(val), size, String_make_header(val, size));
+        block = alloc_with_hd(size, String_make_header(size));
         break;
       default:
         size = Wosize_hd(val);

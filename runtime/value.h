@@ -106,19 +106,20 @@ extern hd_t first_atoms[];
 // 2-1: string
 #define String_tag (No_scan_tag+1)
 #define String_wosize_hd(hd) (hd >> Gcsize_offset)
-#define String_make_header(tag, size) (tag | (value)(size) << Gcsize_offset)
+#define String_make_header(size) (String_tag | (value)(size) << Gcsize_offset)
 
 // 2-2: array
 #define Array_tag (No_scan_tag+2)
+#define Array_make_header(size) (Array_tag | (value)(size) << Gcsize_offset)
 
 static inline u32 array_length(value s)
 { return Hd_val(s) >> Gcsize_offset; }
 
 static inline value array_getitem(value s, intptr_t i)
-{ return (((value*)s+2))[i]; }
+{ return Field(s, i+1); }
 
-static inline void array_setitem(value s, intptr_t i, value c)
-{ ((value*)s+2)[i] = c; }
+static inline void array_setitem(value s, intptr_t i, value x)
+{ Field(s, i+1) = x; }
 
 // 2-3: float (represented by double)
 #define Double_tag (No_scan_tag+3)

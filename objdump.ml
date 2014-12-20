@@ -38,6 +38,11 @@ let init_jumptbl () =
     in
     Printf.printf "0x%04x" (pos+n)
   in
+  let makearray ic pos =
+    let init = input_byte ic in
+    if init <> 0 then
+      print_string "init"
+  in
   let makeblock ic pos =
     Printf.printf "0x%08lx" (input_bin_int32 ic)
   in
@@ -79,6 +84,7 @@ let init_jumptbl () =
   jumptbl.(opENDLET) <- u8;
   jumptbl.(opGETFIELD) <- u8;
   jumptbl.(opGETGLOBAL) <- u16;
+  jumptbl.(opMAKEARRAY) <- makearray;
   jumptbl.(opMAKEBLOCK) <- makeblock;
   jumptbl.(opSETFIELD) <- u8;
   jumptbl.(opSETGLOBAL) <- u16;

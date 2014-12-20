@@ -268,7 +268,7 @@ let rec transl_expr env expr =
     | Pexpr_apply(e,es) ->
         Lapply(go e, List.map go es)
     | Pexpr_array es ->
-        Lprim(Pmakeblock(0,0), List.map go es)
+        Lprim(Pmakearray true, Lconst (Const_int (List.length es))::List.map go es)
     | Pexpr_constant c ->
         Lconst c
     | Pexpr_constr(id,arg) ->

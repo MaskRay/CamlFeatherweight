@@ -27,6 +27,10 @@ let oo w =
     o (w lsr 8)
   )
 
+let oooo w =
+  oo (w land 65535);
+  oo (w lsr 16 land 65535)
+
 (* label *)
 
 type label_def =
@@ -164,12 +168,19 @@ let rec emit code =
             o opDUMMY; o n
         | Pfield n ->
             o opGETFIELD; o n
+        | Pgetarrayitem ->
+            o opGETARRAYITEM
         | Pgetstringitem ->
             o opGETSTRINGITEM
+        | Pmakearray init ->
+            o opMAKEARRAY;
+            o (if init then 1 else 0)
         | Praise ->
             o opRAISE
         | Psetfield n ->
             o opSETFIELD; o n
+        | Psetarrayitem ->
+            o opSETARRAYITEM
         | Psetstringitem ->
             o opSETSTRINGITEM
         | Pstringlength ->
