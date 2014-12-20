@@ -84,6 +84,9 @@ void disasm(code_t pc)
     pc += 2;
     break;
   case BRANCH:
+    printf("0x%08x", pc+pi16(pc));
+    pc += 2;
+    break;
   case BRANCHIF:
   case BRANCHIFEQ:
   case BRANCHIFGE:

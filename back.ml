@@ -111,13 +111,13 @@ let compile_lambda expr =
                 Ktest(test_for_const a, staticraise)::c_expr e c
             | (a,e)::rest ->
                 let lbl = new_label() in
-                Ktest(test_for_const a, lbl)::c_expr e (Klabel lbl::go rest)
+                Ktest(test_for_const a, lbl)::c_expr e (b::Klabel lbl::go rest)
           in
           c_expr sel (go alts)
-      (*| Lswitch(1, sel, [_, e]) ->*)
-          (*c_expr e cont*)
-      (*| Lswitch(2, sel, [(_,0), l0; (_,1), l1]) ->*)
-          (*c_bin_test sel l1 l0 cont*)
+      | Lswitch(1, sel, [_, e]) ->
+          c_expr e cont
+      | Lswitch(2, sel, [(_,0), l0; (_,1), l1]) ->
+          c_bin_test sel l1 l0 cont
       | Lswitch(span,sel,alts) ->
           let b, c = make_branch cont in
           let tbl = Array.make span staticraise in

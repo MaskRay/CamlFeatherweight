@@ -23,6 +23,7 @@ c_primitive cprims[] = {
   greaterequal,
   input_char,
   output_char,
+  output_int,
 };
 
 const char *name_of_cprims[] = {
@@ -35,4 +36,5 @@ const char *name_of_cprims[] = {
   "greaterequal",
   "input_char",
   "output_char",
+  "output_int",
 };

@@ -428,7 +428,7 @@ let show_bool_test = function
   | Ptest_int i ->
       "Ptest_int " ^
       (match i with
-      | Pneqimm i -> string_of_int i
+      | Pneqimm i -> "<>" ^ string_of_int i
       | _ -> show_test_prim i)
 
 let show_prim = function

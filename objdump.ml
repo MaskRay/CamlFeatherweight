@@ -39,7 +39,7 @@ let init_jumptbl () =
     Printf.printf "0x%04x" (pos+n)
   in
   let makeblock ic pos =
-    Printf.printf "0x%08x" (input_bin_int ic)
+    Printf.printf "0x%08lx" (input_bin_int32 ic)
   in
   let switch ic pos =
     let nalts = input_byte ic in

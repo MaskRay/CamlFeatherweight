@@ -115,10 +115,10 @@ let file f =
         | Unterminated_string ->
             Printf.eprintf "%aString literal not terminated\n"
             output_location l
-      (*| Parser.Error _ ->*)
-        (*prerr_endline "Syntax error";*)
-        (*close_in ic*)
         end
+      | Failure _ ->
+        prerr_endline "Syntax error";
+        close_in ic
   end;
   close_in ic;
   close_out oc

@@ -239,4 +239,10 @@ let () =
   ; info={ v_typ=type_arrow type_char type_unit
          ; v_prim=Prim(1, Pccall(1, "output_char"))
          }
+  };
+  add_global_value
+  { qualid=Lident "output_int"
+  ; info={ v_typ=type_arrow type_int type_unit
+         ; v_prim=Prim(1, Pccall(1, "output_int"))
+         }
   }

@@ -36,7 +36,7 @@ let paths_of_pat path p =
     | Ppat_constr(_,p) ->
         begin match p with
         | None -> acc
-        | Some p -> go acc path p
+        | Some p -> go acc (0::path) p
         end
     | Ppat_tuple ps ->
         let rec go2 acc i = function
@@ -361,16 +361,8 @@ let translate_letdef loc isrec binds =
   in
   if isrec then
     let ves = List.map (fun (p,e) -> extract_var p, e) binds in
-    let dummies =
-      make_sequence (fun (v,e) ->
-        Lprim(Psetglobal(Lident v), [Lprim(Pdummy 1, [])])) ves
-    in
-    let updates =
-      make_sequence (fun (v,e) ->
-        Lprim(Pupdate, [Lprim(Pgetglobal(Lident v), []); translate_expr e]))
-      ves
-    in
-    Lsequence(dummies, updates)
+    make_sequence (fun (v,e) ->
+      Lprim(Psetglobal(Lident v), [translate_expr e])) ves
   else
     match binds with
     | [{ p_desc=Ppat_var v }, e] -> (* let var = expr *)

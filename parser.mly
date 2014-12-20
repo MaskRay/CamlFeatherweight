@@ -311,10 +311,9 @@ simple_expr:
   | BEGIN expr END { $2 }
 
   | error
-      { failwith
-        (Printf.sprintf "characters %d %d"
-          (Parsing.symbol_start ())
-          (Parsing.symbol_end ())) }
+      { Location.output_location stderr
+          (Parsing.symbol_start (),
+          Parsing.symbol_end ()); failwith "syntax error" }
 
 simple_expr_list:
   | simple_expr simple_expr_list { $1::$2 }
