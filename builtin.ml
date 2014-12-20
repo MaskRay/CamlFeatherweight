@@ -217,6 +217,12 @@ let () =
          }
   };
   add_global_value
+  { qualid=Ldot(Lident "Array", "make")
+  ; info={ v_typ=gen_type_arrow type_int (gen_type_arrow generic_var ty)
+         ; v_prim=Prim(2, Pmakearray false)
+         }
+  };
+  add_global_value
   { qualid=Ldot(Lident "Array", "set")
   ; info={ v_typ=gen_type_arrow ty (gen_type_arrow type_int (gen_type_arrow generic_var type_unit))
          ; v_prim=Prim(3, Psetarrayitem)
