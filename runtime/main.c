@@ -153,6 +153,9 @@ value interpret(code_t code)
     Inst(ARRAYLENGTH):
       acc = Val_int(array_length(acc));
       Next;
+    Inst(ASRINT):
+      acc = 1 | acc-1 >> Int_val(*asp++);
+      Next;
     Inst(ATOM):
       acc = Atom(*pc++);
       Next;
@@ -339,6 +342,12 @@ value interpret(code_t code)
     Inst(LET):
       env = alloc_block(env, 1);
       Field(env, 0) = acc;
+      Next;
+    Inst(LSLINT):
+      acc = 1 | acc-1 << Int_val(*asp++);
+      Next;
+    Inst(LSRINT):
+      acc = 1 | (uvalue)(acc-1) >> Int_val(*asp++);
       Next;
     Inst(LTFLOAT):
       acc = Atom(Double_val(acc) < Double_val(*asp++));

@@ -15,6 +15,28 @@ let make_type_expression desc =
 let make_impl desc =
   {im_desc=desc; im_loc=get_loc()}
 
+let make_uplus name arg =
+  match name, arg.e_desc with
+  | "+", Pexpr_constant(Const_int x) ->
+      make_expr arg.e_desc
+  | ("+"|"+."), Pexpr_constant(Const_float x) ->
+      make_expr arg.e_desc
+  | _ ->
+      make_expr(Pexpr_apply(
+        make_expr(Pexpr_ident(Lident "~+")),
+        [arg]))
+
+let make_uminus name arg =
+  match name, arg.e_desc with
+  | "-", Pexpr_constant(Const_int x) ->
+      make_expr(Pexpr_constant(Const_int (-x)))
+  | ("-"|"-."), Pexpr_constant(Const_float x) ->
+      make_expr(Pexpr_constant(Const_float (-.x)))
+  | _ ->
+      make_expr(Pexpr_apply(
+        make_expr(Pexpr_ident(Lident "~-")),
+        [arg]))
+
 let make_unop op ({e_loc=l1,_} as e1) =
   let l,_ as loc = get_loc() in
   {e_desc=Pexpr_apply({e_desc=Pexpr_ident(Lident op);
@@ -76,6 +98,8 @@ let make_apply e1 e2 =
 %token RPAREN         /* ")" */
 %token STAR           /* "*" */
 %token COMMA          /* "," */
+%token MINUS          /* "-" */
+%token MINUSDOT       /* "-." */
 %token MINUSGREATER   /* "->" */
 %token DOT            /* "." */
 %token COLON          /* ":" */
@@ -86,6 +110,8 @@ let make_apply e1 e2 =
 %token LBRACKET       /* "[" */
 %token LBRACKETBAR    /* "[|" */
 %token LESSMINUS      /* "<-" */
+%token PLUS           /* "+" */
+%token PLUSDOT        /* "+." */
 %token RBRACKET       /* "]" */
 %token QUOTE          /* "'" */
 %token UNDERSCORE     /* "_" */
@@ -145,9 +171,10 @@ let make_apply e1 e2 =
 %left INFIX0 EQUAL EQUALEQUAL
 %right INFIX1
 %right COLONCOLON
-%left INFIX2
+%left INFIX2 PLUS PLUSDOT MINUS MINUSDOT
 %left INFIX3 STAR
 %right INFIX4
+%nonassoc prec_unary_minus
 %nonassoc prec_constr_app
 %nonassoc below_DOT
 %left DOT
@@ -241,6 +268,14 @@ constr_decl:
 
 /* expression */
 
+additive:
+  | PLUS { "+" }
+  | PLUSDOT { "+." }
+
+subtractive:
+  | MINUS { "-" }
+  | MINUSDOT { "-." }
+
 opt_bar:
   | /* empty */ { () }
   | BAR { () }
@@ -268,6 +303,8 @@ expr:
   | expr_comma_list %prec below_COMMA { make_expr(Pexpr_tuple(List.rev $1)) }
   | NOT expr { make_unop "not" $2 }
   /*| simple_expr expr LESSMINUS expr { make_expr (Pexpr_assign($1, $3)) }*/
+  | additive expr %prec prec_unary_minus { make_uplus $1 $2 }
+  | subtractive expr %prec prec_unary_minus { make_uminus $1 $2 }
   | expr INFIX4 expr { make_binop $2 $1 $3 }
   | expr INFIX3 expr { make_binop $2 $1 $3 }
   | expr STAR expr { make_binop "*" $1 $3 }
@@ -275,6 +312,10 @@ expr:
       make_expr(Pexpr_constr(Lident "::",
         Some(make_expr(Pexpr_tuple [$1; $3])))) }
   | expr INFIX2 expr { make_binop $2 $1 $3 }
+  | expr PLUS expr { make_binop "+" $1 $3 }
+  | expr PLUSDOT expr { make_binop "+." $1 $3 }
+  | expr MINUS expr { make_binop "-" $1 $3 }
+  | expr MINUSDOT expr { make_binop "-." $1 $3 }
   | expr INFIX1 expr { make_binop $2 $1 $3 }
   | expr INFIX0 expr { make_binop $2 $1 $3 }
   | expr EQUAL expr { make_binop "=" $1 $3 }

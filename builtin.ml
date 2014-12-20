@@ -177,7 +177,7 @@ let () =
   let polyop (op,p) =
     add_global_value
     { qualid=Lident op
-    ; info={ v_typ=type_arrow generic_var (type_arrow generic_var type_bool)
+    ; info={ v_typ=gen_type_arrow generic_var (gen_type_arrow generic_var type_bool)
           ; v_prim=Prim(2, p)
           }
     }
@@ -187,6 +187,13 @@ let () =
   ; "-", Psubint
   ; "*", Pmulint
   ; "/", Pdivint
+  ; "mod", Pmodint
+  ; "land", Pandint
+  ; "lor", Porint
+  ; "lxor", Pxorint
+  ; "lsl", Plslint
+  ; "lsr", Plsrint
+  ; "asr", Pasrint
   ];
   List.iter floatop
   [ "+.", Pfloat Paddfloat
@@ -262,5 +269,29 @@ let () =
   { qualid=Lident "output_int"
   ; info={ v_typ=type_arrow type_int type_unit
          ; v_prim=Prim(1, Pccall(1, "output_int"))
+         }
+  };
+  add_global_value
+  { qualid=Lident "~+"
+  ; info={ v_typ=type_arrow type_int type_int
+         ; v_prim=Prim(1, Pidentity)
+         }
+  };
+  add_global_value
+  { qualid=Lident "~-"
+  ; info={ v_typ=type_arrow type_int type_int
+         ; v_prim=Prim(1, Pnegint)
+         }
+  };
+  add_global_value
+  { qualid=Lident "~+."
+  ; info={ v_typ=type_arrow type_float type_float
+         ; v_prim=Prim(1, Pidentity)
+         }
+  };
+  add_global_value
+  { qualid=Lident "~-."
+  ; info={ v_typ=type_arrow type_float type_float
+         ; v_prim=Prim(1, Pfloat Pnegfloat)
          }
   }

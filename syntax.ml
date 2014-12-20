@@ -16,7 +16,9 @@ type constant =
 
 type prim =
   | Paddint
+  | Pandint
   | Parraylength
+  | Pasrint
   | Pccall of int * string
   | Pdecr
   | Pdivint
@@ -26,13 +28,18 @@ type prim =
   | Pgetarrayitem
   | Pgetstringitem
   | Pgetglobal of long_ident
+  | Pidentity
   | Pincr
+  | Plslint
+  | Plsrint
   | Pmakearray of bool
   | Pmakeblock of constr_tag
   | Pmakestring
   | Pmodint
   | Pmulint
+  | Pnegint
   | Pnot
+  | Porint
   | Praise
   | Psetarrayitem
   | Psetstringitem
@@ -42,6 +49,7 @@ type prim =
   | Psubint
   | Ptest of bool_test
   | Pupdate
+  | Pxorint
 
 and float_prim =
   | Paddfloat
@@ -456,7 +464,9 @@ let show_bool_test = function
 
 let show_prim = function
   | Paddint -> "Paddint"
+  | Pandint -> "Pandint"
   | Parraylength -> "Parraylength"
+  | Pasrint -> "Pasrint"
   | Pccall(a,n) -> Printf.sprintf "Pccall %d %s" a n
   | Pdecr -> "Pdecr"
   | Pdivint -> "Pdivint"
@@ -467,12 +477,16 @@ let show_prim = function
   | Pgetstringitem -> "Pgetstringitem"
   | Pgetglobal id -> Printf.sprintf "Pgetglobal %s" (string_of_long_ident id)
   | Pincr -> "Pincr"
+  | Plslint -> "Plslint"
+  | Plsrint -> "Plsrint"
   | Pmakearray init -> Printf.sprintf "Pmakearray %b" init
   | Pmakeblock(n,t) -> Printf.sprintf "Pmakeblock %d %d" n t
   | Pmakestring -> "Pmakestring"
   | Pmodint -> "Pmodint"
   | Pmulint -> "Pmulint"
+  | Pnegint -> "Pnegint"
   | Pnot -> "Pnot"
+  | Porint -> "Porint"
   | Praise -> "Praise"
   | Psetarrayitem -> "Psetarrayitem"
   | Psetstringitem -> "Psetstringitem"
@@ -482,6 +496,7 @@ let show_prim = function
   | Psubint -> "Psbutint"
   | Ptest t -> show_bool_test t
   | Pupdate -> "Pupdate"
+  | Pxorint -> "Pxorint"
 
 let dump_prim d prim =
   let rec go d prim =

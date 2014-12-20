@@ -1,5 +1,6 @@
 open Error
 open Exe
+open Lambda
 open Instruction
 open Opcode
 open Syntax
@@ -186,35 +187,41 @@ let rec emit code =
     | Kprim prim ->
         begin match prim with
         | Paddint -> o opADDINT
-        | Pdecr -> o opDECR
-        | Pfloat(Paddfloat) -> o opADDFLOAT
-        | Pfloat(Psubfloat) -> o opSUBFLOAT
-        | Pfloat(Pmulfloat) -> o opMULFLOAT
-        | Pfloat(Pdivfloat) -> o opDIVFLOAT
-        | Psubint -> o opSUBINT
-        | Pmulint -> o opMULINT
-        | Pdivint -> o opDIVINT
-        | Pmodint -> o opMODINT
+        | Pandint -> o opANDINT
+        | Pasrint -> o opASRINT
         | Pccall(arity,name) ->
             if arity <= 4 then (
               o (opCCALL1+arity-1);
               slot_for_prim name
             ) else
               not_implemented()
+        | Pdecr -> o opDECR
+        | Pdivint -> o opDIVINT
         | Pdummy n ->
             o opDUMMY; o n
         | Pfield n ->
             o opGETFIELD; o n
+        | Pfloat(Paddfloat) -> o opADDFLOAT
+        | Pfloat(Psubfloat) -> o opSUBFLOAT
+        | Pfloat(Pmulfloat) -> o opMULFLOAT
+        | Pfloat(Pdivfloat) -> o opDIVFLOAT
         | Pgetarrayitem ->
             o opGETARRAYITEM
         | Pgetstringitem ->
             o opGETSTRINGITEM
+        | Pidentity -> ()
         | Pincr -> o opINCR
+        | Plslint -> o opLSLINT
+        | Plsrint -> o opLSRINT
         | Pmakearray init ->
             o opMAKEARRAY;
             o (if init then 1 else 0)
         | Pmakestring ->
             o opMAKESTRING
+        | Pmodint -> o opMODINT
+        | Pmulint -> o opMULINT
+        | Pnegint -> o opNEGINT
+        | Porint -> o opORINT
         | Praise ->
             o opRAISE
         | Psetfield n ->
@@ -225,6 +232,7 @@ let rec emit code =
             o opSETSTRINGITEM
         | Pstringlength ->
             o opSTRINGLENGTH
+        | Psubint -> o opSUBINT
         | Ptest t ->
             o begin match t with
             | Ptest_eq -> opEQ
@@ -233,6 +241,7 @@ let rec emit code =
             | Ptest_float t -> out_test_float t
             | Ptest_string t -> out_test_string t
             end
+        | Pxorint -> o opXORINT
         | _ ->
             dump_prim 3 prim;
             fatal_error "TODO"
@@ -271,13 +280,13 @@ let rec emit code =
             o opPUSH; o opPUSH; o opGETGLOBAL; slot_for_const (Const_float x);
             o opEQFLOAT; o opPOPBRANCHIFNOT; out_label l
         | Ptest_float t ->
-            out_test_float t;
+            o (out_test_float t);
             o opBRANCHIF; out_label l
         | Ptest_string(Pneqimm x) ->
             o opPUSH; o opPUSH; o opGETGLOBAL; slot_for_const (Const_string x);
             o opEQSTRING; o opPOPBRANCHIFNOT; out_label l
         | Ptest_string t ->
-            out_test_string t;
+            o (out_test_string t);
             o opBRANCHIF; out_label l
         | _ -> assert false
         end
