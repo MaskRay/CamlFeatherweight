@@ -191,8 +191,13 @@ let rec typing_expr env expr =
       end
   | Pexpr_constraint(e,te) ->
       let ty = type_of_type_expression false te in
-      typing_expect env e ty;
+      typing_expect (env) e ty;
       ty
+  | Pexpr_for(name,start,stop,_,body) ->
+      typing_expect env start type_int;
+      typing_expect env stop type_int;
+      typing_stmt ((name,type_int)::env) body;
+      type_unit
   | Pexpr_function mat ->
       begin match mat with
       | [] -> failwith "empty matching"

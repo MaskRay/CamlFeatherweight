@@ -1,10 +1,15 @@
 open Syntax
 
+type struct_constant =
+  | Const_base of constant
+  | Const_block of int
+
 type lambda =
   | Labstract of lambda                   (* lambda abstraction *)
   | Lapply of lambda * lambda list
   | Lcond of lambda * (constant * lambda) list
-  | Lconst of constant
+  | Lconst of struct_constant
+  | Lfor of lambda * lambda * bool * lambda
   | Lif of lambda * lambda * lambda
   | Llet of lambda list * lambda          (* local binding *)
   | Lletrec of lambda list * lambda       (* local recursive binding *)
@@ -37,7 +42,15 @@ let dump_lambda d l =
     | Lconst c ->
         print_endline "Lconst";
         Printf.printf "%*s" (2*d+2) "";
-        dump_constant c
+        begin match c with
+        | Const_base c -> dump_constant c
+        | Const_block t -> Printf.printf "tag %d\n" t;
+        end
+    | Lfor(start,stop,up,body) ->
+        Printf.printf "For %s\n" (if up then "up" else "down");
+        go (d+1) start;
+        go (d+1) stop;
+        go (d+1) body
     | Lif(cond,ifso,ifnot) ->
         print_endline "Lif";
         go (d+1) ifso;

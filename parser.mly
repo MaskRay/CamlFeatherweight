@@ -99,6 +99,9 @@ let make_apply e1 e2 =
 %token AND            /* "and" */
 %token AS             /* "as" */
 %token BEGIN          /* "begin" */
+%token DO             /* "do" */
+%token DONE           /* "done" */
+%token DOWNTO         /* "downto" */
 %token ELSE           /* "else" */
 %token END            /* "end" */
 %token FOR            /* "for" */
@@ -116,6 +119,7 @@ let make_apply e1 e2 =
 %token THEN           /* "then" */
 %token TO             /* "to" */
 %token TYPE           /* "type" */
+%token WHILE          /* "while" */
 %token WITH           /* "with" */
 
 %nonassoc IN
@@ -245,6 +249,10 @@ rec_flag:
   | /* empty */ { false }
   | REC { true }
 
+direction_flag:
+  | TO { true }
+  | DOWNTO { false }
+
 mutable_flag:
   | /* empty */ { false }
   | MUTABLE { true }
@@ -283,6 +291,8 @@ expr:
         [$1; $4; $7])) }
   | IF expr THEN expr ELSE expr { make_expr(Pexpr_if($2, $4, Some $6)) }
   | IF expr THEN expr { make_expr(Pexpr_if($2, $4, None)) }
+  | FOR LIDENT EQUAL seq_expr direction_flag seq_expr DO seq_expr DONE {
+      make_expr(Pexpr_for($2, $4, $6, $5, $8)) }
   | LET rec_flag let_binding_list IN seq_expr { make_expr(Pexpr_let($2, $3, $5)) }
   | FUN simple_pattern fun_def { make_expr(Pexpr_function [$2, $3]) }
   | FUNCTION opt_bar match1_case_list { make_expr (Pexpr_function $3) }
@@ -328,9 +338,6 @@ expr_semi_list:
   | expr { [$1] }
 
 /* let */
-
-val_ident:
-  | LIDENT { $1 }
 
 type_constraint:
   | COLON type_ { $2 }

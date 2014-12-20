@@ -8,8 +8,12 @@ let keyword_tbl = Hashtbl.create 31;;
 List.iter (fun (str,tok) -> Hashtbl.replace keyword_tbl str tok) [
   "and", AND;
   "as", AS;
+  "do", DO;
+  "done", DONE;
+  "downto", DOWNTO;
   "else", ELSE;
   "end", END;
+  "for", FOR;
   "fun", FUN;
   "function", FUNCTION;
   "if", IF;
@@ -21,7 +25,9 @@ List.iter (fun (str,tok) -> Hashtbl.replace keyword_tbl str tok) [
   "or", OR;
   "rec", REC;
   "then", THEN;
+  "to", TO;
   "type", TYPE;
+  "while", WHILE;
   "with", WITH
 ]
 

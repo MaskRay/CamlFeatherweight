@@ -31,6 +31,42 @@ let oooo w =
   oo (w land 65535);
   oo (w lsr 16 land 65535)
 
+let out_test_int = function
+  | Peq -> opEQ
+  | Pneq -> opNEQ
+  | Plt -> opLTINT
+  | Ple -> opLEINT
+  | Pgt -> opGTINT
+  | Pge -> opGEINT
+  | _ -> assert false
+
+let out_test_int_b = function
+  | Peq -> opBRANCHIFEQ
+  | Pneq -> opBRANCHIFNEQ
+  | Plt -> opBRANCHIFLT
+  | Ple -> opBRANCHIFLE
+  | Pgt -> opBRANCHIFGT
+  | Pge -> opBRANCHIFGE
+  | _ -> assert false
+
+let out_test_float = function
+  | Peq -> opEQFLOAT
+  | Pneq -> opNEQFLOAT
+  | Plt -> opLTFLOAT
+  | Ple -> opLEFLOAT
+  | Pgt -> opGTFLOAT
+  | Pge -> opGEFLOAT
+  | _ -> assert false
+
+let out_test_string = function
+  | Peq -> opEQSTRING
+  | Pneq -> opNEQSTRING
+  | Plt -> opLTSTRING
+  | Ple -> opLESTRING
+  | Pgt -> opGTSTRING
+  | Pge -> opGESTRING
+  | _ -> assert false
+
 (* label *)
 
 type label_def =
@@ -150,6 +186,7 @@ let rec emit code =
     | Kprim prim ->
         begin match prim with
         | Paddint -> o opADDINT
+        | Pdecr -> o opDECR
         | Pfloat(Paddfloat) -> o opADDFLOAT
         | Pfloat(Psubfloat) -> o opSUBFLOAT
         | Pfloat(Pmulfloat) -> o opMULFLOAT
@@ -172,6 +209,7 @@ let rec emit code =
             o opGETARRAYITEM
         | Pgetstringitem ->
             o opGETSTRINGITEM
+        | Pincr -> o opINCR
         | Pmakearray init ->
             o opMAKEARRAY;
             o (if init then 1 else 0)
@@ -191,36 +229,9 @@ let rec emit code =
             o begin match t with
             | Ptest_eq -> opEQ
             | Ptest_neq -> opNEQ
-            | Ptest_int t ->
-                begin match t with
-                | Peq -> opEQ
-                | Pneq -> opNEQ
-                | Plt -> opLTINT
-                | Ple -> opLEINT
-                | Pgt -> opGTINT
-                | Pge -> opGEINT
-                | Pneqimm _ -> assert false
-                end
-            | Ptest_float t ->
-                begin match t with
-                | Peq -> opEQFLOAT
-                | Pneq -> opNEQFLOAT
-                | Plt -> opLTFLOAT
-                | Ple -> opLEFLOAT
-                | Pgt -> opGTFLOAT
-                | Pge -> opGEFLOAT
-                | Pneqimm _ -> assert false
-                end
-            | Ptest_string t ->
-                begin match t with
-                | Peq -> opEQSTRING
-                | Pneq -> opNEQSTRING
-                | Plt -> opLTSTRING
-                | Ple -> opLESTRING
-                | Pgt -> opGTSTRING
-                | Pge -> opGESTRING
-                | Pneqimm _ -> assert false
-                end
+            | Ptest_int t -> out_test_int t
+            | Ptest_float t -> out_test_float t
+            | Ptest_string t -> out_test_string t
             end
         | _ ->
             dump_prim 3 prim;
@@ -230,10 +241,15 @@ let rec emit code =
     | Kpushmark -> o opPUSHMARK
     | Kquote c ->
         begin match c with
-        | Const_char x -> out_const_int (int_of_char x)
-        | Const_int x -> out_const_int x
-        | Const_float x -> o opGETGLOBAL; slot_for_const c
-        | Const_string x -> o opGETGLOBAL; slot_for_const c
+        | Const_block t ->
+            o opATOM;
+            o t
+        | Const_base c ->
+            match c with
+            | Const_char x -> out_const_int (int_of_char x)
+            | Const_int x -> out_const_int x
+            | Const_float x -> o opGETGLOBAL; slot_for_const c
+            | Const_string x -> o opGETGLOBAL; slot_for_const c
         end
     | Kreturn -> o opRETURN
     | Ksetglobal id -> o opSETGLOBAL; slot_for_setglobal id
@@ -248,12 +264,21 @@ let rec emit code =
         | Ptest_int(Pneqimm x) ->
             o opPUSH; o opPUSH; out_const_int x;
             o opEQ; o opPOPBRANCHIFNOT; out_label l
+        | Ptest_int t ->
+            o (out_test_int_b t);
+            out_label l
         | Ptest_float(Pneqimm x) ->
             o opPUSH; o opPUSH; o opGETGLOBAL; slot_for_const (Const_float x);
             o opEQFLOAT; o opPOPBRANCHIFNOT; out_label l
+        | Ptest_float t ->
+            out_test_float t;
+            o opBRANCHIF; out_label l
         | Ptest_string(Pneqimm x) ->
             o opPUSH; o opPUSH; o opGETGLOBAL; slot_for_const (Const_string x);
             o opEQSTRING; o opPOPBRANCHIFNOT; out_label l
+        | Ptest_string t ->
+            out_test_string t;
+            o opBRANCHIF; out_label l
         | _ -> assert false
         end
     | Kupdate n -> o opUPDATE; o n

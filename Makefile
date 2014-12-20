@@ -6,6 +6,9 @@ run: runtime/main.c runtime/io.c runtime/error.c runtime/instruct.c runtime/comp
 runtime/jumptable.h: runtime/instruct.h
 	sed -rn 's/([[:upper:]]+)/\&\&lbl_\1/;T;p' $< > $@
 
+runtime/instruct.c: runtime/instruct.h
+	{ echo 'const char *name_of_instructions[] = {'; sed -rn 's/([[:upper:]]+).*/"\1",/;T;p' $<; echo '};';} > $@
+
 opcode.ml: runtime/instruct.h
 	#awk '/[[:upper:]]/{sub(",","");print "let op"$$1"="i++}' $< > $@
 	awk '/[[:upper:]]/{sub(",","");print "let op"$$1"="n++;s[n-1]=$$1}END{printf "let name_of_opcodes=[|";for(i=0;i<n;i++)printf "\""s[i]"\";";print"|]"}' $< > $@

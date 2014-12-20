@@ -1,3 +1,4 @@
+open Lambda
 open Syntax
 
 type zinc_instruction =
@@ -17,7 +18,7 @@ type zinc_instruction =
   | Kprim of prim
   | Kpush
   | Kpushmark
-  | Kquote of constant
+  | Kquote of struct_constant
   | Kreturn
   | Ksetglobal of long_ident
   | Kswitch of int array
@@ -48,7 +49,10 @@ let show_zinc =
   | Kprim prim -> "Kprim(" ^ show_prim prim ^ ")"
   | Kpush -> "Kpush"
   | Kpushmark -> "Kpushmark"
-  | Kquote c -> Printf.sprintf "Kquote(%a)" (fun () -> show_constant) c
+  | Kquote c -> Printf.sprintf "Kquote(%a)" (fun () c ->
+      match c with
+      | Const_base c -> show_constant c
+      | Const_block t -> Printf.sprintf "tag %d" t) c
   | Kreturn -> "Kreturn"
   | Ksetglobal l -> Printf.sprintf "Ksetglobal(%a)" output_long_ident l
   | Kswitch ls ->

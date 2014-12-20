@@ -55,6 +55,24 @@ let compile_lambda expr =
             to_compile := (e,lbl) :: !to_compile;
             Kcur lbl::cont
           )
+      | Lfor(start,stop,up,body) ->
+          let l_end = new_label() and l_loop = new_label() in
+          c_expr start (
+            Kmakeblock((1,0),1)::Klet::
+            c_expr stop (
+              Klet::Klabel l_loop::
+              Kaccess 1::Kprim(Pfield 0)::Klet::
+              Kpush::Kaccess 1::
+              Ktest(Ptest_int(if up then Plt else Pgt), l_end)::
+              c_expr body (
+                Kendlet 1::
+                Kaccess 1::Kprim(if up then Pincr else Pdecr)::
+                Kbranch l_loop::
+                Klabel l_end::Kendlet 3::
+                Kquote(Const_block 0)::cont
+              )
+            )
+          )
       | Llet(binds,body) ->
           let c = if is_tail cont then cont else Kendlet(List.length binds)::cont in
           let c = c_expr body c in

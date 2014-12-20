@@ -153,6 +153,9 @@ value interpret(code_t code)
     Inst(ARRAYLENGTH):
       acc = Val_int(array_length(acc));
       Next;
+    Inst(ATOM):
+      acc = Atom(*pc++);
+      Next;
     Inst(BRANCH):
       pc += pi16(pc);
       Next;
@@ -237,6 +240,10 @@ value interpret(code_t code)
       Env_val(acc) = env;
       pc += sizeof(i16);
       Next;
+    Inst(DECR):
+      Field(acc, 0) -= 2;
+      acc = Atom(0);
+      Next;
     Inst(DIVFLOAT):
       tmp = alloc(Double_tag, Double_wosize);
       *(double*)Op_val(tmp) = Double_val(acc) / Double_val(*asp++);
@@ -258,7 +265,7 @@ value interpret(code_t code)
       uint32_t size = Wosize_val(env)-n;
       value newenv = alloc(0, size);
       REP(i, size)
-        Field(newenv, i+n) = Field(env, i);
+        Field(newenv, i) = Field(env, i+n);
       env = newenv;
       Next;
     }
@@ -312,6 +319,10 @@ value interpret(code_t code)
       Next;
     Inst(GTSTRING):
       acc = Atom(string_compare(acc, *asp++) > 0);
+      Next;
+    Inst(INCR):
+      Field(acc, 0) += 2;
+      acc = Atom(0);
       Next;
     Inst(INTOFFLOAT):
       acc = Val_int((value)Double_val(acc));

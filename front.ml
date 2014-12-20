@@ -268,9 +268,9 @@ let rec transl_expr env expr =
     | Pexpr_apply(e,es) ->
         Lapply(go e, List.map go es)
     | Pexpr_array es ->
-        Lprim(Pmakearray true, Lconst (Const_int (List.length es))::List.map go es)
+        Lprim(Pmakearray true, Lconst (Const_base (Const_int (List.length es)))::List.map go es)
     | Pexpr_constant c ->
-        Lconst c
+        Lconst(Const_base c)
     | Pexpr_constr(id,arg) ->
         let cd = find_constr_desc id in
         begin match arg with
@@ -286,6 +286,10 @@ let rec transl_expr env expr =
         end
     | Pexpr_constraint(e,_) ->
         go e
+    | Pexpr_for(name,start,stop,up,body) ->
+        let env' = [name,[]]::[]::[]::env in
+        Lfor(go start, transl_expr ([]::env) stop, up,
+        transl_expr env' body)
     | Pexpr_function pes ->
         Labstract(transl_match expr.e_loc env @@
           List.map (fun (p,e) -> [p],e) pes)
@@ -313,7 +317,7 @@ let rec transl_expr env expr =
     | Pexpr_if(cond,ifso,ifnot) ->
         begin match ifnot with
         | None ->
-            Lif(go cond, go ifso, Lconst(Const_int 0))
+            Lif(go cond, go ifso, Lconst(Const_block 0))
         | Some ifnot ->
             Lif(go cond, go ifso, go ifnot)
         end
@@ -348,7 +352,7 @@ let translate_expr = transl_expr []
 (* toplevel letdef *)
 
 let rec make_sequence f = function
-  | [] -> Lconst(Const_int 0)
+  | [] -> Lconst(Const_block 0)
   | [x] -> f x
   | x::xs -> Lsequence(f x, make_sequence f xs)
 

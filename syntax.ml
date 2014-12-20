@@ -18,6 +18,7 @@ type prim =
   | Paddint
   | Parraylength
   | Pccall of int * string
+  | Pdecr
   | Pdivint
   | Pdummy of int
   | Pfield of int
@@ -25,6 +26,7 @@ type prim =
   | Pgetarrayitem
   | Pgetstringitem
   | Pgetglobal of long_ident
+  | Pincr
   | Pmakearray of bool
   | Pmakeblock of constr_tag
   | Pmakestring
@@ -113,6 +115,7 @@ and expression_desc =
   | Pexpr_constant of constant
   | Pexpr_constraint of expression * type_expression
   | Pexpr_constr of long_ident * expression option
+  | Pexpr_for of string * expression * expression * bool * expression
   | Pexpr_function of (pattern * expression) list
   | Pexpr_ident of long_ident
   | Pexpr_if of expression * expression * expression option
@@ -276,6 +279,11 @@ and dump_expression d expr =
         | None -> ()
         | Some e -> go (d+1) e
         end
+    | Pexpr_for(name,start,stop,up,body) ->
+        Printf.printf "For %s %s\n" name (if up then "up" else "down");
+        go (d+1) start;
+        go (d+1) stop;
+        go (d+1) body
     | Pexpr_function alts ->
         print_endline "Function";
         List.iter (fun (p,e) ->
@@ -450,6 +458,7 @@ let show_prim = function
   | Paddint -> "Paddint"
   | Parraylength -> "Parraylength"
   | Pccall(a,n) -> Printf.sprintf "Pccall %d %s" a n
+  | Pdecr -> "Pdecr"
   | Pdivint -> "Pdivint"
   | Pdummy n -> Printf.sprintf "Pdummy %d" n
   | Pfield i -> Printf.sprintf "Pfield %d" i
@@ -457,6 +466,7 @@ let show_prim = function
   | Pgetarrayitem -> "Pgetarrayitem"
   | Pgetstringitem -> "Pgetstringitem"
   | Pgetglobal id -> Printf.sprintf "Pgetglobal %s" (string_of_long_ident id)
+  | Pincr -> "Pincr"
   | Pmakearray init -> Printf.sprintf "Pmakearray %b" init
   | Pmakeblock(n,t) -> Printf.sprintf "Pmakeblock %d %d" n t
   | Pmakestring -> "Pmakestring"
