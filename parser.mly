@@ -354,6 +354,7 @@ simple_expr:
   | simple_expr DOT LBRACKET seq_expr RBRACKET {
       make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "String", "get"))),
         [$1; $4])) }
+  | PREFIX simple_expr { make_expr(Pexpr_apply(make_expr(Pexpr_ident (Lident $1)), [$2])) }
   | LPAREN seq_expr RPAREN { $2 }
   | LPAREN seq_expr COLON type_ RPAREN { make_expr(Pexpr_constraint($2, $4)) }
   | LBRACKET expr_semi_list RBRACKET { make_expr_list($2) }
@@ -409,6 +410,10 @@ operator:
   | INFIX2 { $1 }
   | INFIX3 { $1 }
   | INFIX4 { $1 }
+  | PLUS { "+" }
+  | PLUSDOT { "+." }
+  | MINUS { "-" }
+  | MINUSDOT { "-." }
   | AMPERSAND { "&" }
   | AMPERAMPER { "&&" }
   | EQUAL { "=" }

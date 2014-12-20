@@ -21,6 +21,10 @@ let dbg_lexer lexbuf =
   | INFIX2 op -> "INFIX2 " ^ op
   | INFIX3 op -> "INFIX3 " ^ op
   | INFIX4 op -> "INFIX4 " ^ op
+  | PLUS -> "+"
+  | PLUSDOT -> "+."
+  | MINUS -> "-"
+  | MINUSDOT -> "-."
 
   | EQUAL -> "="
   | EQUALEQUAL -> "=="
@@ -50,6 +54,7 @@ let dbg_lexer lexbuf =
   | AND -> "and"
   | AS -> "as"
   | BEGIN -> "begin"
+  | DOWNTO -> "downto"
   | ELSE -> "else"
   | END -> "end"
   | FALSE -> "false"
@@ -116,7 +121,7 @@ let file f =
             Printf.eprintf "%aString literal not terminated\n"
             output_location l
         end
-      | Failure _ ->
+      | Failure l ->
         prerr_endline "Syntax error";
         close_in ic
   end;
