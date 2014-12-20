@@ -295,7 +295,7 @@ simple_expr:
   | INT { make_expr(Pexpr_constant(Const_int $1)) }
   | FLOAT { make_expr(Pexpr_constant(Const_float $1)) }
   | STRING { make_expr(Pexpr_constant(Const_string $1)) }
-  | LIDENT { make_expr(Pexpr_ident(Lident $1)) }
+  | val_longident { make_expr(Pexpr_ident($1)) }
   | constr_longident { make_expr(Pexpr_constr($1, None)) }
   | simple_expr DOT LPAREN seq_expr RPAREN {
       make_expr(Pexpr_apply(make_expr(Pexpr_ident(Ldot(Lident "Array", "get"))),
@@ -352,11 +352,32 @@ let_binding:
   | val_ident fun_binding { make_pat(Ppat_var $1), $2 }
   | pattern EQUAL seq_expr { $1, $3 }
 
-/* longident */
+/* ident and longident */
+
+operator:
+  | PREFIX { $1 }
+  | INFIX0 { $1 }
+  | INFIX1 { $1 }
+  | INFIX2 { $1 }
+  | INFIX3 { $1 }
+  | INFIX4 { $1 }
+  | AMPERSAND { "&" }
+  | AMPERAMPER { "&&" }
+  | EQUAL { "=" }
+  | EQUALEQUAL { "==" }
+  | BARBAR { "||" }
 
 mod_longident:
   | UIDENT { Lident $1 }
   | mod_longident DOT UIDENT { Ldot($1,$3) }
+
+val_ident:
+  | LIDENT { $1 }
+  | LPAREN operator RPAREN { $2 }
+
+val_longident:
+  | val_ident { Lident $1 }
+  | mod_longident DOT val_ident { Ldot($1, $3) }
 
 constr_longident:
   | LPAREN RPAREN { Lident "()" }

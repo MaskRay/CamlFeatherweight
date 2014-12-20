@@ -84,9 +84,6 @@ void disasm(code_t pc)
     pc += 2;
     break;
   case BRANCH:
-    printf("0x%08x", pc+pi16(pc));
-    pc += 2;
-    break;
   case BRANCHIF:
   case BRANCHIFEQ:
   case BRANCHIFGE:
@@ -294,7 +291,7 @@ value interpret(code_t code)
       pc += sizeof(u16);
       Next;
     Inst(GETSTRINGITEM):
-      acc = string_getitem(acc, Int_val(*asp++));
+      acc = Val_int(string_getitem(acc, Int_val(*asp++)));
       Next;
     Inst(GRAB):
       if (*asp == MARK) {
@@ -441,6 +438,7 @@ value interpret(code_t code)
       Next;
     Inst(SETSTRINGITEM):
       string_setitem(acc, Int_val(asp[0]), Int_val(asp[1]));
+      acc = Atom(0);
       asp += 2;
       Next;
     Inst(SHLINT):

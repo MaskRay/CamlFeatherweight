@@ -16,6 +16,7 @@ type constant =
 
 type prim =
   | Paddint
+  | Parraylength
   | Pccall of int * string
   | Pdivint
   | Pdummy of int
@@ -33,6 +34,7 @@ type prim =
   | Psetstringitem
   | Psetfield of int
   | Psetglobal of long_ident
+  | Pstringlength
   | Psubint
   | Ptest of bool_test
   | Pupdate
@@ -421,18 +423,30 @@ let show_test_prim = function
   | Ple -> "Ple"
   | Pgt -> "Pgt"
   | Pge -> "Pge"
+  | Pneqimm _ -> assert false
 
 let show_bool_test = function
   | Ptest_eq -> "Ptest_eq"
   | Ptest_neq -> "Ptest_neq"
-  | Ptest_int i ->
+  | Ptest_int x ->
       "Ptest_int " ^
-      (match i with
-      | Pneqimm i -> "<>" ^ string_of_int i
-      | _ -> show_test_prim i)
+      (match x with
+      | Pneqimm x -> "<>" ^ string_of_int x
+      | _ -> show_test_prim x)
+  | Ptest_float x ->
+      "Ptest_float " ^
+      (match x with
+      | Pneqimm x -> "<>" ^ string_of_float x
+      | _ -> show_test_prim x)
+  | Ptest_string x ->
+      "Ptest_string " ^
+      (match x with
+      | Pneqimm x -> "<>" ^ String.escaped x
+      | _ -> show_test_prim x)
 
 let show_prim = function
   | Paddint -> "Paddint"
+  | Parraylength -> "Parraylength"
   | Pccall(a,n) -> Printf.sprintf "Pccall %d %s" a n
   | Pdivint -> "Pdivint"
   | Pdummy n -> Printf.sprintf "Pdummy %d" n
@@ -450,6 +464,7 @@ let show_prim = function
   | Psetstringitem -> "Psetstringitem"
   | Psetfield i -> Printf.sprintf "Psetfield %d" i
   | Psetglobal id -> Printf.sprintf "Psetglobal %s" (string_of_long_ident id)
+  | Pstringlength -> "Pstringlength"
   | Psubint -> "Psbutint"
   | Ptest t -> show_bool_test t
   | Pupdate -> "Pupdate"

@@ -164,10 +164,16 @@ let rec emit code =
             o opDUMMY; o n
         | Pfield n ->
             o opGETFIELD; o n
+        | Pgetstringitem ->
+            o opGETSTRINGITEM
         | Praise ->
             o opRAISE
         | Psetfield n ->
             o opSETFIELD; o n
+        | Psetstringitem ->
+            o opSETSTRINGITEM
+        | Pstringlength ->
+            o opSTRINGLENGTH
         | Ptest t ->
             o begin match t with
             | Ptest_eq -> opEQ

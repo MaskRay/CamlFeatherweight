@@ -290,25 +290,25 @@ let rec transl_expr env expr =
         Labstract(transl_match expr.e_loc env @@
           List.map (fun (p,e) -> [p],e) pes)
     | Pexpr_ident id ->
-        begin match id with
-        | Ldot _ ->
-            Lprim(Pgetglobal id, [])
-        | Lident name ->
-            try
+        begin try
+          match id with
+          | Ldot _ ->
+              raise Not_found
+          | Lident name ->
               transl_access env name
-            with Not_found ->
-              let vd = find_value_desc id in
-              match vd.info.v_prim with
-              | Not_prim ->
-                  Lprim(Pgetglobal id, []) (* TODO *)
-              | Prim(arity,prim) ->
-                  let rec go args n =
-                    if n >= arity then
-                      Lprim(prim, args)
-                    else
-                      Labstract (go (Lvar n::args) (n+1))
-                  in
-                  go [] 0
+        with Not_found ->
+          let vd = find_value_desc id in
+          match vd.info.v_prim with
+          | Not_prim ->
+              Lprim(Pgetglobal id, []) (* TODO *)
+          | Prim(arity,prim) ->
+              let rec go args n =
+                if n >= arity then
+                  Lprim(prim, args)
+                else
+                  Labstract (go (Lvar n::args) (n+1))
+              in
+              go [] 0
         end
     | Pexpr_if(cond,ifso,ifnot) ->
         begin match ifnot with

@@ -1,5 +1,11 @@
 #include "str.h"
 
+u32 string_length(value s)
+{
+  u32 size = Hd_val(s) >> Gcsize_offset;
+  return size*4 - ((uvalue)Field(s, size-1) >> sizeof(value)*8-8);
+}
+
 int string_compare(value s1, value s2)
 {
   u32 len1 = string_length(s1),
@@ -15,4 +21,16 @@ int string_compare(value s1, value s2)
   if (len1 < len2) return -1;
   if (len1 > len2) return 1;
   return 0;
+}
+
+u8 string_getitem(value s, u32 i)
+{
+  return (uvalue)Field(s, i/sizeof(value)) >> i%sizeof(value)*8 & 0xFF;
+}
+
+void string_setitem(value s, u32 i, u8 c)
+{
+  uvalue x = (uvalue)Field(s, i/sizeof(value));
+  u32 y = i%sizeof(value)*8;
+  Field(s, i/sizeof(value)) = x - ((x >> y & 0xFF) << y) + (c << y);
 }

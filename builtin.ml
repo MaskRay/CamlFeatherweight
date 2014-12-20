@@ -223,15 +223,21 @@ let () =
          }
   };
   add_global_value
+  { qualid=Ldot(Lident "String", "length")
+  ; info={ v_typ=type_arrow type_string type_int
+         ; v_prim=Prim(1, Pstringlength)
+         }
+  };
+  add_global_value
   { qualid=Ldot(Lident "String", "get")
   ; info={ v_typ=type_arrow type_string (type_arrow type_int type_char)
-         ; v_prim=Prim(2, Pgetarrayitem)
+         ; v_prim=Prim(2, Pgetstringitem)
          }
   };
   add_global_value
   { qualid=Ldot(Lident "String", "set")
   ; info={ v_typ=type_arrow type_string (type_arrow type_int (type_arrow type_char type_unit))
-         ; v_prim=Prim(3, Psetarrayitem)
+         ; v_prim=Prim(3, Psetstringitem)
          }
   };
   add_global_value
