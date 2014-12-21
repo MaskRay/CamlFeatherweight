@@ -117,6 +117,7 @@ type reloc_entry =
   | Reloc_getglobal of long_ident
   | Reloc_setglobal of long_ident
   | Reloc_prim of string
+  | Reloc_tag of long_ident * int
 
 let relocs = ref []
 
@@ -126,6 +127,16 @@ let enter_reloc info =
 let slot_for_prim name =
   enter_reloc (Reloc_prim name);
   o 0
+
+let slot_for_tag (id,stamp) =
+  enter_reloc (Reloc_tag(id,stamp));
+  o 0
+
+let out_tag = function
+  | Constr_tag_regular(n,t) ->
+      o t
+  | Constr_tag_extensible(id,stamp) ->
+      slot_for_tag (id,stamp)
 
 let slot_for_const c =
   enter_reloc (Reloc_const c);
@@ -152,7 +163,6 @@ let rec emit code =
       slot_for_const (Const_int i)
     )
   in
-  let out_tag (_,t) = o t in
   let out_header tag n =
     if true || Sys.word_size = 32 then (
       out_tag tag; (* [0,8) *)
@@ -184,6 +194,7 @@ let rec emit code =
     | Klabel l -> define_label l
     | Klet -> o opLET
     | Kmakeblock(tag,n) -> o opMAKEBLOCK; out_header tag n
+    | Kpoptrap -> o opPOPTRAP
     | Kprim prim ->
         begin match prim with
         | Paddint -> o opADDINT
@@ -241,6 +252,7 @@ let rec emit code =
             | Ptest_int t -> out_test_int t
             | Ptest_float t -> out_test_float t
             | Ptest_string t -> out_test_string t
+            | _ -> assert false
             end
         | Pxorint -> o opXORINT
         | _ ->
@@ -249,6 +261,9 @@ let rec emit code =
         end
     | Kpush -> o opPUSH
     | Kpushmark -> o opPUSHMARK
+    | Kpushtrap l ->
+        o opPUSHTRAP;
+        out_label l
     | Kquote c ->
         begin match c with
         | Const_block t ->
@@ -289,6 +304,10 @@ let rec emit code =
         | Ptest_string t ->
             o (out_test_string t);
             o opBRANCHIF; out_label l
+        | Ptest_noteqtag tag ->
+            o opBRANCHIFNEQTAG;
+            out_tag tag;
+            out_label l
         | _ -> assert false
         end
     | Kupdate n -> o opUPDATE; o n

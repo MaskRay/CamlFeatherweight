@@ -1,6 +1,6 @@
 CFLAGS += -std=gnu11 -m32 -g3
 
-run: runtime/main.c runtime/io.c runtime/error.c runtime/instruct.c runtime/compare.c runtime/prim.c runtime/str.c runtime/jumptable.h
+run: runtime/main.c runtime/io.c runtime/error.c runtime/instruct.c runtime/compare.c runtime/prim.c runtime/str.c runtime/jumptable.h runtime/value.h
 	$(LINK.c) -I runtime $(filter %.c,$^) -o $@
 
 runtime/jumptable.h: runtime/instruct.h

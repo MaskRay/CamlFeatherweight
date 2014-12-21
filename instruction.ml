@@ -15,9 +15,11 @@ type zinc_instruction =
   | Klabel of int
   | Klet
   | Kmakeblock of constr_tag * int
+  | Kpoptrap
   | Kprim of prim
   | Kpush
   | Kpushmark
+  | Kpushtrap of int
   | Kquote of struct_constant
   | Kreturn
   | Ksetglobal of long_ident
@@ -45,10 +47,12 @@ let show_zinc =
   | Kgrab -> "Kgrab"
   | Klabel l -> Printf.sprintf "Klabel%a" output_label l
   | Klet -> "Klet"
-  | Kmakeblock((n,t),cnt) -> Printf.sprintf "Kmakeblock((%d,%d),%d)" n t cnt
+  | Kmakeblock(tag,cnt) -> Printf.sprintf "Kmakeblock((%s),%d)" (show_tag tag) cnt
+  | Kpoptrap -> "Kpoptrap"
   | Kprim prim -> "Kprim(" ^ show_prim prim ^ ")"
   | Kpush -> "Kpush"
   | Kpushmark -> "Kpushmark"
+  | Kpushtrap l -> Printf.sprintf "Kpushtrap(%d)" l
   | Kquote c -> Printf.sprintf "Kquote(%a)" (fun () c ->
       match c with
       | Const_base c -> show_constant c

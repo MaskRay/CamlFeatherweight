@@ -1,3 +1,4 @@
+open Cprim
 open Emit
 open Exe
 open Opcode
@@ -5,6 +6,7 @@ open Opcode
 exception Invalid
 
 let jumptbl = Array.make (opXORINT+1) (fun _ _ -> ())
+let relocatable = ref false
 
 let init_jumptbl () =
   let i8 ic _ =
@@ -12,6 +14,11 @@ let init_jumptbl () =
     Printf.printf "%d" (if b >= 128 then b-256 else b) in
   let u8 ic _ =
     Printf.printf "%d" (input_byte ic) in
+  let prim ic _ =
+    if !relocatable then
+      Printf.printf "%d" (input_byte ic)
+    else
+      Printf.printf "%s" name_of_prims.(input_byte ic) in
   let i16 ic _ =
     let b0 = input_byte ic in
     let b1 = input_byte ic in
@@ -64,6 +71,7 @@ let init_jumptbl () =
     print_char ']'
   in
   jumptbl.(opACCESS) <- u8;
+  jumptbl.(opATOM) <- u8;
   jumptbl.(opBRANCH) <- rel16;
   jumptbl.(opBRANCHIF) <- rel16;
   jumptbl.(opBRANCHIFEQ) <- rel16;
@@ -73,10 +81,10 @@ let init_jumptbl () =
   jumptbl.(opBRANCHIFLT) <- rel16;
   jumptbl.(opBRANCHIFNEQ) <- rel16;
   jumptbl.(opBRANCHIFNOT) <- rel16;
-  jumptbl.(opCCALL1) <- u8;
-  jumptbl.(opCCALL2) <- u8;
-  jumptbl.(opCCALL3) <- u8;
-  jumptbl.(opCCALL4) <- u8;
+  jumptbl.(opCCALL1) <- prim;
+  jumptbl.(opCCALL2) <- prim;
+  jumptbl.(opCCALL3) <- prim;
+  jumptbl.(opCCALL4) <- prim;
   jumptbl.(opCONSTINT8) <- i8;
   jumptbl.(opCONSTINT16) <- i16;
   jumptbl.(opCUR) <- rel16;
@@ -86,6 +94,7 @@ let init_jumptbl () =
   jumptbl.(opGETGLOBAL) <- u16;
   jumptbl.(opMAKEARRAY) <- makearray;
   jumptbl.(opMAKEBLOCK) <- makeblock;
+  jumptbl.(opPUSHTRAP) <- rel16;
   jumptbl.(opSETFIELD) <- u8;
   jumptbl.(opSETGLOBAL) <- u16;
   jumptbl.(opSWITCH) <- switch;
@@ -163,12 +172,14 @@ let dump filename =
       raise Invalid;
     match Bytes.sub_string buf 0 4 with
     | "meow" ->
+        relocatable := true;
         print_endline "Relocatable file";
         let phr_idx_off = input_bin_int ic in
         seek_in ic phr_idx_off;
         let phr_idx = (input_value ic : compiled_phrase list) in
         List.iter (print_phr_entry ic) phr_idx
     | "woem" ->
+        relocatable := false;
         print_endline "Executable";
         let global_off = input_bin_int ic in
         let global_num = input_bin_int ic in

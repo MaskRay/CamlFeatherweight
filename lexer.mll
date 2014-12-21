@@ -32,6 +32,7 @@ List.iter (fun (str,tok) -> Hashtbl.replace keyword_tbl str tok) [
   "rec", REC;
   "then", THEN;
   "to", TO;
+  "try", TRY;
   "type", TYPE;
   "while", WHILE;
   "with", WITH

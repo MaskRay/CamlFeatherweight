@@ -1,3 +1,4 @@
+open Builtin
 open Error
 open Global
 open Lambda
@@ -184,7 +185,10 @@ let upper_left_pattern =
   in
   go
 
-let get_span_of_constr cd = fst cd.info.cs_tag
+let get_span_of_constr cd =
+  match cd.info.cs_tag with
+  | Constr_tag_extensible _ -> 0
+  | Constr_tag_regular(n,_) -> n
 
 let rec conquer_matching =
   let rec conquer_divided_matching = function
@@ -249,7 +253,10 @@ let rec conquer_matching =
       end
   | _ -> assert false
 
-let translate_matching loc env rows =
+let partial_fun =
+  Lprim(Praise, [Lprim(Pmakeblock match_failure_tag, [])])
+
+let translate_matching fail env rows =
   let rec go = function
     | 0 -> []
     | n -> Lvar(n-1) :: go (n-1)
@@ -258,7 +265,7 @@ let translate_matching loc env rows =
   let lambda, total = conquer_matching (rows, go row_len) in
   match total with
   | Total -> lambda
-  | _ -> Lstaticcatch(lambda, Lprim(Praise, [])) (* FIXME report error *)
+  | _ -> Lstaticcatch(lambda, fail) (* FIXME report error *)
 
 (* toplevel expression *)
 
@@ -291,7 +298,7 @@ let rec transl_expr env expr =
         Lfor(go start, transl_expr ([]::env) stop, up,
         transl_expr env' body)
     | Pexpr_function pes ->
-        Labstract(transl_match expr.e_loc env @@
+        Labstract(transl_match_check expr.e_loc env @@
           List.map (fun (p,e) -> [p],e) pes)
     | Pexpr_ident id ->
         begin try
@@ -326,14 +333,17 @@ let rec transl_expr env expr =
           let ps, acts = List.split binds in
           let env' = make_env env ps in
           Lletrec(List.map (transl_expr env') acts,
-          transl_match expr.e_loc env [ps,body])
+          transl_match_check expr.e_loc env [ps,body])
         ) else
           Llet(transl_bind env binds,
-          transl_match expr.e_loc env [List.map fst binds,body])
+          transl_match_check expr.e_loc env [List.map fst binds,body])
     | Pexpr_sequence(e1,e2) ->
         Lsequence(go e1, go e2)
+    | Pexpr_try(body,pes) ->
+        Lcatch(go body,
+          transl_match env @@ List.map (fun (p,e) -> [p],e) pes)
     | Pexpr_tuple es ->
-        Lprim(Pmakeblock(1,0), List.map go es)
+        Lprim(Pmakeblock(Constr_tag_regular(1,0)), List.map go es)
   in
   go expr
 
@@ -342,10 +352,15 @@ and transl_bind env = function
   | (_,e)::pes ->
       transl_expr env e :: transl_bind ([]::env) pes
 
-and transl_match loc env psas =
+and transl_match env psas =
   let rows = List.map (fun (ps,act) ->
     ps, transl_expr (make_env env ps) act) psas in
-  translate_matching loc env rows
+  translate_matching (Lprim(Praise, [Lvar 0])) env rows
+
+and transl_match_check loc env psas =
+  let rows = List.map (fun (ps,act) ->
+    ps, transl_expr (make_env env ps) act) psas in
+  translate_matching partial_fun env rows
 
 let translate_expr = transl_expr []
 
@@ -378,4 +393,4 @@ let translate_letdef loc isrec binds =
         let env = List.fold_left (fun env p -> paths_of_pat [] p :: env) [] ps in
         let store var = Lprim(Psetglobal(Lident var), [transl_access env var]) in
         Llet(transl_bind [] binds,
-          translate_matching loc [] [ps, make_sequence store vars])
+          translate_matching partial_fun [] [ps, make_sequence store vars])

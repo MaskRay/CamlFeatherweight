@@ -243,6 +243,12 @@ let rec typing_expr env expr =
   | Pexpr_sequence(e1,e2) ->
       typing_stmt env e1;
       typing_expr env e2
+  | Pexpr_try(body,pes) ->
+      let ty = typing_expr env body in
+      List.iter (fun (p,e) ->
+        typing_expect (typing_pat [] p type_exn @ env) e ty
+      ) pes;
+      ty
   | Pexpr_tuple es ->
       type_product (List.map (typing_expr env) es)
 

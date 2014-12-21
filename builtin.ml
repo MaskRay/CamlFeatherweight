@@ -10,6 +10,7 @@ let type_constr_bool   = f "bool"
 let type_constr_char   = f "char"
 let type_constr_int    = f "int"
 let type_constr_float  = f "float"
+let type_constr_exn    = f "exn"
 let type_constr_string = f "string"
 let type_constr_option = f "option"
 let type_constr_list   = f "list"
@@ -23,6 +24,7 @@ let type_bool   = f type_constr_bool
 let type_char   = f type_constr_char
 let type_int    = f type_constr_int
 let type_float  = f type_constr_float
+let type_exn    = f type_constr_exn
 let type_string = f type_constr_string
 let type_option = f type_constr_option
 
@@ -49,7 +51,7 @@ let constr_void =
   f "()"
   { cs_res={ typ_desc=Tconstr(type_constr_unit, []); typ_level=notgeneric }
   ; cs_arg=type_unit
-  ; cs_tag=1,0
+  ; cs_tag=Constr_tag_regular(1,0)
   ; cs_kind=Constr_constant
   }
 
@@ -57,7 +59,7 @@ let constr_false =
   f "false"
   { cs_res={ typ_desc=Tconstr(type_constr_bool, []); typ_level=notgeneric }
   ; cs_arg=type_unit
-  ; cs_tag=2,0
+  ; cs_tag=Constr_tag_regular(2,0)
   ; cs_kind=Constr_constant
   }
 
@@ -65,8 +67,19 @@ let constr_true =
   f "true"
   { cs_res={ typ_desc=Tconstr(type_constr_bool, []); typ_level=notgeneric }
   ; cs_arg=type_unit
-  ; cs_tag=2,1
+  ; cs_tag=Constr_tag_regular(2,1)
   ; cs_kind=Constr_constant
+  }
+
+let match_failure_tag =
+  Constr_tag_extensible(Lident "Match_failure",0)
+
+let constr_match_failure =
+  f "Match_failure"
+  { cs_res={ typ_desc=Tconstr(type_constr_exn, []); typ_level=notgeneric }
+  ; cs_arg=type_product [type_string; type_int; type_int]
+  ; cs_tag=match_failure_tag
+  ; cs_kind=Constr_regular
   }
 
 let constr_nil =
@@ -74,7 +87,7 @@ let constr_nil =
   f "[]"
   { cs_res={ typ_desc=Tconstr(type_constr_list, [arg]); typ_level=generic }
   ; cs_arg=type_unit
-  ; cs_tag=2,0
+  ; cs_tag=Constr_tag_regular(2,0)
   ; cs_kind=Constr_constant
   }
 
@@ -84,7 +97,7 @@ let constr_cons =
   f "::"
   { cs_res=arg2
   ; cs_arg={ typ_desc=Tproduct [arg1; arg2]; typ_level=generic }
-  ; cs_tag=2,1
+  ; cs_tag=Constr_tag_regular(2,1)
   ; cs_kind=Constr_superfluous 2
   }
 
@@ -93,7 +106,7 @@ let constr_none =
   f "None"
   { cs_res={ typ_desc=Tconstr(type_constr_option, [arg]); typ_level=generic }
   ; cs_arg=type_unit
-  ; cs_tag=2,0
+  ; cs_tag=Constr_tag_regular(2,0)
   ; cs_kind=Constr_constant
   }
 
@@ -102,7 +115,7 @@ let constr_some =
   f "Some"
   { cs_res={ typ_desc=Tconstr(type_constr_option, [arg]); typ_level=generic }
   ; cs_arg=arg
-  ; cs_tag=2,1
+  ; cs_tag=Constr_tag_regular(2,1)
   ; cs_kind=Constr_regular
   }
 
@@ -135,6 +148,10 @@ let () =
       ; ty_arity=0
       ; ty_desc=Abstract_type
       }
+  ; f { ty_constr=type_constr_exn
+      ; ty_arity=0
+      ; ty_desc=Variant_type[]
+      }
   ; f { ty_constr=type_constr_string
       ; ty_arity=0
       ; ty_desc=Abstract_type
@@ -154,7 +171,7 @@ let () =
   ];
   List.iter add_global_constr
   [ constr_void; constr_false; constr_true; constr_nil; constr_cons
-  ; constr_none; constr_some
+  ; constr_none; constr_some; constr_match_failure
   ]
 
 let () =
@@ -311,5 +328,11 @@ let () =
   { qualid=Lident "~-."
   ; info={ v_typ=type_arrow type_float type_float
          ; v_prim=Prim(1, Pfloat Pnegfloat)
+         }
+  };
+  add_global_value
+  { qualid=Lident "raise"
+  ; info={ v_typ=type_arrow type_exn generic_var
+         ; v_prim=Prim(1, Praise)
          }
   }

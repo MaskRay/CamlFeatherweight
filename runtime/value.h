@@ -16,6 +16,7 @@ typedef int32_t i32;
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
+typedef uint64_t u64;
 
 #define pi8(p) (*(int8_t*)(p))
 #define pu8(p) (*(uint8_t*)(p))
@@ -70,6 +71,9 @@ bits  63  36 35    8 7   0
 #define Hd_val(x) (*(hd_t*)x)
 #define Op_val(x) ((value*)(x)+2)
 #define Field(x, i) (((value*)(x))[i+2])
+#define Color_hd(hd) ((hd) >> Gcsize_offset & (1 << Size_offset-Gcsize_offset) - 1)
+#define Color_val(v) Color_hd(Hd_val(v))
+#define Set_color_val(v,col) (Hd_val(v) & ~((1<<Size_offset)-(1<<Gcsize_offset)) | (col)<<Gcsize_offset)
 
 // tag
 
@@ -105,8 +109,11 @@ extern hd_t first_atoms[];
 
 // 2-1: string
 #define String_tag (No_scan_tag+1)
-#define String_wosize_hd(hd) (hd >> Gcsize_offset)
-#define String_make_header(size) (String_tag | (value)(size) << Gcsize_offset)
+#define String_wosize_hd(hd) ((hd) >> Gcsize_offset+1)
+#define String_wosize_val(v) String_wosize_hd(Hd_val(v))
+#define String_make_header(size) (String_tag | (value)(size) << Gcsize_offset+1)
+#define String_color_hd(hd) ((hd) >> Gcsize_offset & 1)
+#define String_color_val(v) String_color_hd(Hd_val(v))
 
 // 2-2: array
 #define Array_tag (No_scan_tag+2)
@@ -135,6 +142,12 @@ static inline void array_setitem(value s, intptr_t i, value x)
 struct return_frame {
   code_t pc;
   value env;
+};
+
+struct trap_frame {
+  code_t pc;
+  value env, *asp;
+  struct trap_frame *tp;
 };
 
 /* empty */

@@ -236,7 +236,15 @@ and pretty_pat pri pat =
   go pri pat
 
 let pretty_letdef isrec pes =
-  text (if isrec then "let" else "let rec")
+  (* TODO use lhs and *)
+  let keyword =
+    if isrec then text "let" else text "let" <+> text "rec"
+  in
+  keyword </>
+  sep_by (space <.> text "and" <.> softline)
+  (List.map (fun (p,e) ->
+    pretty_pat 0 p <+> char '=' </> pretty_expr 0 e
+  ) pes)
 
 let pprint_impl width impl =
   let doc =
@@ -245,8 +253,8 @@ let pprint_impl width impl =
         pretty_expr 0 e
     | Pimpl_typedef decl ->
         empty
-    | Pimpl_letdef(isrec,binds) ->
-        empty
+    | Pimpl_letdef(isrec,pes) ->
+        pretty_letdef isrec pes
   in
   print_endline @@ render width doc
 

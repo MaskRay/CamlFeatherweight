@@ -7,6 +7,7 @@ type struct_constant =
 type lambda =
   | Labstract of lambda                   (* lambda abstraction *)
   | Lapply of lambda * lambda list
+  | Lcatch of lambda * lambda
   | Lcond of lambda * (constant * lambda) list
   | Lconst of struct_constant
   | Lfor of lambda * lambda * bool * lambda
@@ -31,6 +32,10 @@ let dump_lambda d l =
         print_endline "Lapply";
         go (d+1) l;
         List.iter (go (d+1)) ls;
+    | Lcatch(body,handler) ->
+        print_endline "Lcatch";
+        go (d+1) body;
+        go (d+1) handler
     | Lcond(path,alts) ->
         print_endline "Lcond";
         go (d+1) path;
@@ -82,8 +87,13 @@ let dump_lambda d l =
     | Lswitch(span,path,alts) ->
         Printf.printf "Lswitch span=%d\n" span;
         go (d+1) path;
-        List.iter (fun ((n,t),l) ->
-          Printf.printf "%*s%d,%d\n" (2*d+2) "" n t;
+        List.iter (fun (tag,l) ->
+          begin match tag with
+          | Constr_tag_regular(n,t) ->
+              Printf.printf "%*s%d,%d\n" (2*d+2) "" n t;
+          | Constr_tag_extensible(id,stamp) ->
+              Printf.printf "%*s%s %d\n" (2*d+2) "" (string_of_long_ident id) stamp;
+          end;
           go (d+2) l
         ) alts
     | Lvar i ->

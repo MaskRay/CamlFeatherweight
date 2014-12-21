@@ -48,7 +48,7 @@ let typing_impl_typedef loc decl : (typ * type_components) list =
                 { qualid=Lident name
                 ; info={ cs_res=ty_res
                        ; cs_arg=type_unit
-                       ; cs_tag=n, i
+                       ; cs_tag=Constr_tag_regular(n,i)
                        ; cs_kind=Constr_constant
                        }
                 }
@@ -62,7 +62,7 @@ let typing_impl_typedef loc decl : (typ * type_components) list =
                 { qualid=Lident name
                 ; info={ cs_res=ty_res
                        ; cs_arg=ty_arg
-                       ; cs_tag=n, i
+                       ; cs_tag=Constr_tag_regular(n,i)
                        ; cs_kind=Constr_regular
                        }
                 }

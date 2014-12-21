@@ -1,10 +1,13 @@
 type location = int * int
-type constr_tag = int * int
 let no_location = -1,-1
 
 type long_ident =
   | Lident of string
   | Ldot of long_ident * string
+
+type constr_tag =
+  | Constr_tag_regular of int * int
+  | Constr_tag_extensible of long_ident * int
 
 type constant =
   | Const_char of char
@@ -66,6 +69,7 @@ and bool_test =
   | Ptest_int of int test_prim
   | Ptest_float of float test_prim
   | Ptest_string of string test_prim
+  | Ptest_noteqtag of constr_tag
 
 and 'a test_prim =
   | Peq
@@ -111,7 +115,7 @@ and type_components =
 
 (* e.g. false, None *)
 and constr_desc =
-  { cs_arg: typ; cs_res: typ; cs_tag: int * int; cs_kind: constr_kind }
+  { cs_arg: typ; cs_res: typ; cs_tag: constr_tag; cs_kind: constr_kind }
 
 and constr_kind =
   | Constr_constant
@@ -131,6 +135,7 @@ and expression_desc =
   | Pexpr_if of expression * expression * expression option
   | Pexpr_let of bool * (pattern * expression) list * expression
   | Pexpr_sequence of expression * expression
+  | Pexpr_try of expression * (pattern * expression) list
   | Pexpr_tuple of expression list
 
 and type_expression = { te_desc: type_expression_desc; te_loc: location }
@@ -445,6 +450,12 @@ let show_test_prim = function
   | Pge -> "Pge"
   | Pneqimm _ -> assert false
 
+let show_tag = function
+  | Constr_tag_regular(n,t) ->
+      Printf.sprintf "%d,%d" n t
+  | Constr_tag_extensible(id,stamp) ->
+      Printf.sprintf "%s,%d" (string_of_long_ident id) stamp
+
 let show_bool_test = function
   | Ptest_eq -> "Ptest_eq"
   | Ptest_neq -> "Ptest_neq"
@@ -463,6 +474,8 @@ let show_bool_test = function
       (match x with
       | Pneqimm x -> "<>" ^ String.escaped x
       | _ -> show_test_prim x)
+  | Ptest_noteqtag tag ->
+      "Ptest_noteqtag " ^ show_tag tag
 
 let show_prim = function
   | Paddint -> "Paddint"
@@ -482,7 +495,7 @@ let show_prim = function
   | Plslint -> "Plslint"
   | Plsrint -> "Plsrint"
   | Pmakearray init -> Printf.sprintf "Pmakearray %b" init
-  | Pmakeblock(n,t) -> Printf.sprintf "Pmakeblock %d %d" n t
+  | Pmakeblock tag -> "Pmakeblock " ^ show_tag tag
   | Pmakestring -> "Pmakestring"
   | Pmodint -> "Pmodint"
   | Pmulint -> "Pmulint"

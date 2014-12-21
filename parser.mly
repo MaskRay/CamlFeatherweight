@@ -143,6 +143,7 @@ let make_apply e1 e2 =
 %token REC            /* "rec" */
 %token THEN           /* "then" */
 %token TO             /* "to" */
+%token TRY            /* "try" */
 %token TYPE           /* "type" */
 %token WHILE          /* "while" */
 %token WITH           /* "with" */
@@ -337,6 +338,8 @@ expr:
   | MATCH expr WITH opt_bar match1_case_list {
       make_expr (Pexpr_apply(
         make_expr (Pexpr_function $5), [$2])) }
+  | TRY seq_expr WITH opt_bar match1_case_list {
+      make_expr (Pexpr_try($2, $5)) }
 
 simple_expr:
   | CHAR { make_expr(Pexpr_constant(Const_char $1)) }

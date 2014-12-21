@@ -10,6 +10,7 @@ let global_tbl = Hashtbl.create 257
 let global_tbl_used = ref 0
 let const_tbl = Hashtbl.create 257
 let prim_tbl = Hashtbl.create 257
+let tag_tbl = Hashtbl.create 257
 
 let verbose = ref false
 
@@ -41,6 +42,21 @@ let make_slot_for_global id =
     Hashtbl.replace global_tbl id s;
     if !verbose then
       Printf.printf "%s: slot %d of global table" (string_of_long_ident id) s;
+    s
+
+let make_slot_for_tag (id,stamp as tag) =
+  try
+    Hashtbl.find tag_tbl tag
+  with Not_found ->
+    let s = Hashtbl.length tag_tbl in
+    if s >= 256 then (
+      prerr_endline "Used more than 65536 tag table slots.";
+      exit 1
+    );
+    Hashtbl.replace tag_tbl tag s;
+    if !verbose then
+      Printf.printf "%s,%d: slot %d of tag table" (string_of_long_ident id)
+      stamp s;
     s
 
 let get_slot_for_global id =
@@ -138,6 +154,8 @@ let link objs exe =
               make_slot_for_const c |> ignore
           | Reloc_setglobal id ->
               make_slot_for_global id |> ignore
+          | Reloc_tag(id,stamp) ->
+              make_slot_for_tag (id,stamp) |> ignore
           | _ ->
               ()
         ) cph.cph_reloc
@@ -160,6 +178,9 @@ let link objs exe =
               Bytes.set buf (pos+1) (char_of_int (s lsr 8))
           | Reloc_prim name ->
               let s = get_num_of_prim name in
+              Bytes.set buf pos (char_of_int s)
+          | Reloc_tag(id,stamp) ->
+              let s = make_slot_for_tag (id,stamp) in
               Bytes.set buf pos (char_of_int s)
         ) cph.cph_reloc;
         output_bytes oc buf

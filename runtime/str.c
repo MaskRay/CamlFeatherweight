@@ -2,7 +2,7 @@
 
 u32 string_length(value s)
 {
-  u32 size = Hd_val(s) >> Gcsize_offset;
+  u32 size = String_wosize_val(s);
   return size*4 - ((uvalue)Field(s, size-1) >> sizeof(value)*8-8);
 }
 

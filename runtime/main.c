@@ -4,6 +4,7 @@
 #include "prim.h"
 #include "error.h"
 #include "str.h"
+#include "gc.h"
 
 #define DEBUG
 
@@ -14,6 +15,7 @@
 //#define DIRECT_JUMP
 #define Arg_stack_size 16384
 #define Ret_stack_size 16384
+#define Trap_stack_size 16384
 
 bool trace = false;
 bool verbose = false;
@@ -21,7 +23,8 @@ value global_value;
 hd_t first_atoms[256];
 value *arg_stack_low, *arg_stack_high;
 value *ret_stack_low, *ret_stack_high;
-value *tail;
+value *trap_stack_low, *trap_stack_high;
+value tail = 0;
 
 static inline void modify(value *x, value y)
 {
@@ -32,10 +35,10 @@ value alloc_with_hd(u32 size, hd_t hd)
 {
   value block = (value)malloc((size+2)*sizeof(value));
   *(value *)block = hd;
-  ((value *)block)[1] = (value)tail;
+  Field(block, -1) = tail;
   if (tail)
-    tail[1] ^= block;
-  tail = (value *)block;
+    Field(tail, -1) ^= block;
+  tail = block;
   return block;
 }
 
@@ -98,17 +101,178 @@ void disasm(code_t pc)
   putchar('\n');
 }
 
+bool touch(value x)
+{
+  u32 size, color;
+  switch (Tag_val(x)) {
+  case Closure_tag:
+    if (Color_val(x))
+      return true;
+    Hd_val(x) = Set_color_val(x, 1);
+    return false;
+  case String_tag:
+    Hd_val(x) |= 1 << Gcsize_offset;
+    return true;
+  case Array_tag:
+    size = array_length(x);
+    color = Field(x, 0);
+    if (color < size) {
+      Field(x, 0)++;
+      return false;
+    }
+    if (! size)
+      Field(x, 0) = 1;
+    return true;
+  default:
+    size = Wosize_val(x);
+    color = Color_val(x);
+    if (color < size) {
+      Hd_val(x) = Set_color_val(x, color+1);
+      return false;
+    }
+    if (! size)
+      Hd_val(x) = Set_color_val(x, 1);
+    return true;
+  }
+}
+
+u32 get_cur_field(value x)
+{
+  switch (Tag_val(x)) {
+  case Closure_tag:
+    return Env_val(x);
+  case Array_tag:
+    return Field(x, Field(x, 0));
+  default:
+    return Field(x, Color_val(x)-1);
+  }
+}
+
+void set_cur_field(value x, value y)
+{
+  switch (Tag_val(x)) {
+  case Closure_tag:
+    Env_val(x) = y;
+    break;
+  case Array_tag:
+    Field(x, Field(x, 0)) = y;
+    break;
+  default:
+    Field(x, Color_val(x)-1) = y;
+    break;
+  }
+}
+
+bool is_fresh(value x)
+{
+  switch (Tag_val(x)) {
+  case String_tag:
+    return String_color_val(x) == 0;
+  case Array_tag:
+    return Field(x, 0) == 0;
+  default:
+    return Color_val(x) == 0;
+  }
+}
+
+void reset_color(value x)
+{
+  switch (Tag_val(x)) {
+  case String_tag:
+    Hd_val(x) &= ~ (1 << Gcsize_offset);
+    break;
+  case Array_tag:
+    Field(x, 0) = 0;
+    break;
+  default:
+    Hd_val(x) = Set_color_val(x, 0);
+    break;
+  }
+}
+
+void schorr_waite(value x)
+{
+  if (! Is_block(x) || ! x || ! is_fresh(x)) return;
+  value p = 0, y;
+  for(;;) {
+    if (touch(x)) {
+      if (! p) return;
+      y = x;
+      x = p;
+      p = get_cur_field(x);
+      set_cur_field(x, y);
+    } else {
+      y = get_cur_field(x);
+      if (Is_block(y) && y && is_fresh(y)) {
+        set_cur_field(x, p);
+        p = x;
+        x = y;
+      }
+    }
+  }
+}
+
+void gc(value acc, value env, value *asp, value *rsp, struct trap_frame *tp)
+{
+  return;
+  for (value *p = asp; p < arg_stack_high; p++)
+    schorr_waite(*p);
+  for (value *p = rsp; p < ret_stack_high; ) {
+    if (p == (value*)tp) {
+      schorr_waite(tp->env);
+      tp = tp->tp;
+      p = (value*)((char*)p-sizeof(struct trap_frame));
+    } else {
+      schorr_waite(((struct return_frame*)p)->env);
+      p++;
+    }
+  }
+  schorr_waite(global_value);
+  schorr_waite(acc);
+  schorr_waite(env);
+  value x = 0, y = tail, z;
+  while (y) {
+    z = Field(y, -1) ^ x;
+    if (is_fresh(y)) {
+      if (x)
+        Field(x, -1) ^= y ^ z;
+      else
+        tail = z;
+      if (z)
+        Field(z, -1) ^= y ^ x;
+      // printf("+ free %08x\n", y);
+      free((void*)y);
+      y = z;
+    } else {
+      reset_color(y);
+      x = y;
+      y = z;
+    }
+  }
+}
+
 value interpret(code_t code)
 {
   value acc = Val_int(0), env = Atom(0),
-        *asp = arg_stack_high,
-        *rsp = ret_stack_high;
+        *asp = arg_stack_high, *rsp = ret_stack_high;
+  struct trap_frame *tp = NULL;
   code_t pc = code;
   value tmp;
 
 #define retsp ((struct return_frame *)rsp)
 #define Push_ret_frame ( rsp = (value*)((char*)rsp-sizeof(struct return_frame)) )
 #define Pop_ret_frame ( rsp = (value*)((char*)rsp+sizeof(struct return_frame)) )
+#define trapsp ((struct trap_frame *)rsp)
+#define Push_trap_frame ( rsp = (value*)((char*)rsp-sizeof(struct trap_frame)) )
+#define Pop_trap_frame ( rsp = (value*)((char*)rsp+sizeof(struct trap_frame)) )
+//#define Push_ret_frame rsp--
+//#define Pop_ret_frame rsp++
+//#define Push_trap_frame tsp--
+//#define Pop_trap_frame tsp++
+
+#ifdef DEBUG
+  u64 tick = 0;
+#endif
 
 #ifdef DIRECT_JUMP
 # define Inst(name) lbl_##name
@@ -122,8 +286,11 @@ value interpret(code_t code)
 # define Next break
   for(;;) {
 # ifdef DEBUG
-    if (trace)
+    if (trace) {
+      tick++;
       disasm(pc);
+        gc(acc, env, asp, rsp, tp);
+    }
 # endif
     switch (*pc++) {
 #endif
@@ -200,6 +367,12 @@ value interpret(code_t code)
       Next;
     Inst(BRANCHIFNEQ):
       if (acc != *asp++)
+        pc += pi16(pc);
+      else
+        pc += sizeof(i16);
+      Next;
+    Inst(BRANCHIFNEQTAG):
+      if (Tag_val(acc) != *pc++)
         pc += pi16(pc);
       else
         pc += sizeof(i16);
@@ -442,14 +615,37 @@ value interpret(code_t code)
       else
         pc += sizeof(i16);
       Next;
+    Inst(POPTRAP):
+      rsp = (value *)tp;
+      env = trapsp->env;
+      asp = trapsp->asp;
+      tp = trapsp->tp;
+      Pop_trap_frame;
+      Next;
     Inst(PUSH):
       *--asp = acc;
       Next;
     Inst(PUSHMARK):
       *--asp = MARK;
       Next;
+    Inst(PUSHTRAP):
+      Push_trap_frame;
+      trapsp->pc = pc+pi16(pc);
+      pc += sizeof(i16);
+      trapsp->env = env;
+      trapsp->asp = asp;
+      trapsp->tp = tp;
+      tp = trapsp;
+      Next;
     Inst(RAISE):
-      not_implemented("RAISE");
+      rsp = (value *)tp;
+      pc = trapsp->pc;
+      env = alloc_block(trapsp->env, 1);
+      Field(env, 0) = acc;
+      asp = trapsp->asp;
+      tp = trapsp->tp;
+      Pop_trap_frame;
+      Next;
     Inst(RETURN):
       if (*asp == MARK) {
         asp++;
@@ -543,7 +739,9 @@ static void init_stacks(void)
   arg_stack_low = malloc(Arg_stack_size);
   arg_stack_high = arg_stack_low + Arg_stack_size/sizeof(value);
   ret_stack_low = malloc(Arg_stack_size);
-  ret_stack_high = ret_stack_low + Ret_stack_size/sizeof(value);
+  ret_stack_high = ret_stack_low + Ret_stack_size/sizeof(struct return_frame);
+  trap_stack_low = malloc(Trap_stack_size);
+  trap_stack_high = trap_stack_low + Trap_stack_size/sizeof(struct trap_frame);
 }
 
 static void init_global_value(void)
