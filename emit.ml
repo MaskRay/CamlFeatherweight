@@ -221,6 +221,7 @@ let rec emit code =
         | Pmodint -> o opMODINT
         | Pmulint -> o opMULINT
         | Pnegint -> o opNEGINT
+        | Pnot -> o opNOT
         | Porint -> o opORINT
         | Praise ->
             o opRAISE

@@ -41,6 +41,8 @@ type prim =
   | Pnot
   | Porint
   | Praise
+  | Psequand
+  | Psequor
   | Psetarrayitem
   | Psetstringitem
   | Psetfield of int
@@ -277,16 +279,16 @@ and dump_expression d expr =
         List.iter (go (d+1)) es
     | Pexpr_constant c ->
         dump_constant c
-    | Pexpr_constraint(e,t) ->
-        print_endline "Constraint";
-        go (d+1) e;
-        dump_type_expression (d+1) t
     | Pexpr_constr(id, e) ->
         Printf.printf "Constr %s\n" (string_of_long_ident id);
         begin match e with
         | None -> ()
         | Some e -> go (d+1) e
         end
+    | Pexpr_constraint(e,t) ->
+        print_endline "Constraint";
+        go (d+1) e;
+        dump_type_expression (d+1) t
     | Pexpr_for(name,start,stop,up,body) ->
         Printf.printf "For %s %s\n" name (if up then "up" else "down");
         go (d+1) start;
@@ -321,7 +323,7 @@ and dump_expression d expr =
         print_endline "Sequence";
         go (d+1) e1;
         go (d+1) e2
-    | Pexpr_tuple(es) ->
+    | Pexpr_tuple es ->
         print_endline "Tuple";
         List.iter (go (d+1)) es
   in
@@ -331,18 +333,18 @@ and dump_type_expression d te =
   let rec go d te =
     Printf.printf "%*s" (2*d) "";
     match te.te_desc with
-    | Ptype_var v ->
-        Printf.printf "Var %s\n" v;
     | Ptype_arrow(te1,te2) ->
         print_endline "Arrow";
         go (d+1) te1;
         go (d+1) te2
-    | Ptype_tuple(tes) ->
-        print_endline "Tuple";
-        List.iter (go (d+1)) tes
     | Ptype_constr(id,tes) ->
         Printf.printf "Constr %s\n" (string_of_long_ident id);
         List.iter (go (d+1)) tes
+    | Ptype_tuple tes ->
+        print_endline "Tuple";
+        List.iter (go (d+1)) tes
+    | Ptype_var v ->
+        Printf.printf "Var %s\n" v;
   in
   go d te
 
@@ -488,6 +490,8 @@ let show_prim = function
   | Pnot -> "Pnot"
   | Porint -> "Porint"
   | Praise -> "Praise"
+  | Psequand -> "Psequand"
+  | Psequor -> "Psequor"
   | Psetarrayitem -> "Psetarrayitem"
   | Psetstringitem -> "Psetstringitem"
   | Psetfield i -> Printf.sprintf "Psetfield %d" i

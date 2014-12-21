@@ -138,7 +138,6 @@ let make_apply e1 e2 =
 %token LET            /* "let" */
 %token MATCH          /* "match" */
 %token MUTABLE        /* "mutable" */
-%token NOT            /* "not" */
 %token OF             /* "of" */
 %token OR             /* "or" */
 %token REC            /* "rec" */
@@ -166,7 +165,6 @@ let make_apply e1 e2 =
 %right OR BARBAR
 %right AMPERSAND AMPERAMPER
 
-%left NOT
 %nonassoc below_EQUAL
 %left INFIX0 EQUAL EQUALEQUAL
 %right INFIX1
@@ -301,7 +299,6 @@ expr:
   | simple_expr { $1 }
   | simple_expr simple_expr_list { make_apply $1 $2 }
   | expr_comma_list %prec below_COMMA { make_expr(Pexpr_tuple(List.rev $1)) }
-  | NOT expr { make_unop "not" $2 }
   /*| simple_expr expr LESSMINUS expr { make_expr (Pexpr_assign($1, $3)) }*/
   | additive expr %prec prec_unary_minus { make_uplus $1 $2 }
   | subtractive expr %prec prec_unary_minus { make_uminus $1 $2 }

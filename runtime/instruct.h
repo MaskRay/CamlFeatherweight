@@ -66,6 +66,7 @@ enum instruction {
   NEQ,
   NEQFLOAT,
   NEQSTRING,
+  NOT,
   ORINT,
   POP,
   POPBRANCHIFNOT,

@@ -94,6 +94,14 @@ let compile_lambda expr =
           Kdummy n::cont
       | Lprim(Pgetglobal id, []) ->
           Kgetglobal id::cont
+      | Lprim(Psequand, [e1;e2]) ->
+          let lbl = new_label() in
+          c_expr e1 (Kbranchifnot lbl::
+            c_expr e2 (Klabel lbl::cont))
+      | Lprim(Psequor, [e1;e2]) ->
+          let lbl = new_label() in
+          c_expr e1 (Kbranchif lbl::
+            c_expr e2 (Klabel lbl::cont))
       | Lprim(Psetglobal id, [e]) ->
           c_expr e (Ksetglobal id::cont)
       | Lprim(Pmakeblock tag, ls) ->

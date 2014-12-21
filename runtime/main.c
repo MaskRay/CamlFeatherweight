@@ -425,6 +425,9 @@ value interpret(code_t code)
     Inst(NEQSTRING):
       acc = Atom(string_compare(acc, *asp++) == 0);
       Next;
+    Inst(NOT):
+      acc = Atom(Tag_val(acc) == 0);
+      Next;
     Inst(ORINT):
       acc |= *asp++;
       Next;

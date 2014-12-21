@@ -1,9 +1,13 @@
 open Error
 open Location
 open Parser
+open Pretty
 open Lexer
 open Syntax
 open Implementation
+
+let pretty = ref false
+let width = ref 72
 
 let dbg_lexer lexbuf =
   match Lexer.main lexbuf with
@@ -66,7 +70,6 @@ let dbg_lexer lexbuf =
   | LET -> "let"
   | MATCH -> "match"
   | MUTABLE -> "mutable"
-  | NOT -> "not"
   | OF -> "of"
   | OR -> "or"
   | REC -> "rec"
@@ -103,7 +106,10 @@ let file f =
   | _ ->
       try
         let impls = Parser.implementation Lexer.main lexbuf in
-        compile_implementation oc impls
+        if !pretty then
+          pprint_implementation !width impls
+        else
+          compile_implementation oc impls
       with Lexical_error(err, l) ->
         (*Printf.eprintf "character %d-%d" l m;*)
         begin match err with
@@ -129,9 +135,13 @@ let file f =
   close_out oc
 
 let () =
+  let files = ref [] in
   Arg.parse
     [ "-d", Arg.Int(fun i -> stage := i), "stage"
+    ; "-p", Arg.Unit(fun () -> pretty := true), "pretty"
+    ; "-w", Arg.Int(fun i -> width := i), "pretty"
     ; "-v", Arg.Unit(fun () -> Implementation.verbose := true), "verbose"
     ]
-    file
-    ("compiler")
+    (fun file -> files := file :: !files)
+    ("compiler");
+    List.iter file (List.rev !files)

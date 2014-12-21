@@ -158,6 +158,14 @@ let () =
   ]
 
 let () =
+  let boolop (op,p) =
+    add_global_value
+    { qualid=Lident op
+    ; info={ v_typ=type_arrow type_bool (type_arrow type_bool type_bool)
+          ; v_prim=Prim(2, p)
+          }
+    }
+  in
   let intop (op,p) =
     add_global_value
     { qualid=Lident op
@@ -182,6 +190,10 @@ let () =
           }
     }
   in
+  List.iter boolop
+  [ "&&", Psequand
+  ; "||", Psequor
+  ];
   List.iter intop
   [ "+", Paddint
   ; "-", Psubint
@@ -269,6 +281,12 @@ let () =
   { qualid=Lident "output_int"
   ; info={ v_typ=type_arrow type_int type_unit
          ; v_prim=Prim(1, Pccall(1, "output_int"))
+         }
+  };
+  add_global_value
+  { qualid=Lident "not"
+  ; info={ v_typ=type_arrow type_bool type_bool
+         ; v_prim=Prim(1, Pnot)
          }
   };
   add_global_value

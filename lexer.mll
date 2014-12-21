@@ -27,7 +27,6 @@ List.iter (fun (str,tok) -> Hashtbl.replace keyword_tbl str tok) [
   "let", LET;
   "match", MATCH;
   "mod", INFIX3 "mod";
-  "not", NOT;
   "of", OF;
   "or", OR;
   "rec", REC;
