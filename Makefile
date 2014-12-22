@@ -1,6 +1,23 @@
-CFLAGS += -std=gnu11 -m32 -g3
+.PHONY: force
 
-run: runtime/main.c runtime/io.c runtime/error.c runtime/instruct.c runtime/compare.c runtime/prim.c runtime/str.c runtime/jumptable.h runtime/value.h
+CFLAGS += -std=gnu11 -g3
+SRC := $(wildcard *.ml)
+C := $(addprefix runtime/,main.c compare.c error.c instruct.c io.c main.c prim.c str.c)
+HD := $(addprefix runtime/,common.h error.h instruct.h io.h jumptable.h prim.h str.h value.h)
+
+all: camlfwc camlfwod camlfwrun
+
+camlfwc: main.byte
+	ln -sf $< $@
+
+camlfwod: objdump.byte
+	ln -sf $< $@
+
+%.byte: $(SRC)
+	ocamlbuild $@
+	touch $@
+
+camlfwrun: $(C) $(HD)
 	$(LINK.c) -I runtime $(filter %.c,$^) -o $@
 
 runtime/jumptable.h: runtime/instruct.h
@@ -10,7 +27,6 @@ runtime/instruct.c: runtime/instruct.h
 	{ echo 'const char *name_of_instructions[] = {'; sed -rn 's/([[:upper:]]+).*/"\1",/;T;p' $<; echo '};';} > $@
 
 opcode.ml: runtime/instruct.h
-	#awk '/[[:upper:]]/{sub(",","");print "let op"$$1"="i++}' $< > $@
 	awk '/[[:upper:]]/{sub(",","");print "let op"$$1"="n++;s[n-1]=$$1}END{printf "let name_of_opcodes=[|";for(i=0;i<n;i++)printf "\""s[i]"\";";print"|]"}' $< > $@
 
 cprim.ml: runtime/prim.c

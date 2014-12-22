@@ -13,3 +13,6 @@
 #include <unistd.h>
 
 #define MAGIC "woem"
+
+//#define WORD_SIZE __WORDSIZE
+#define WORD_SIZE 64

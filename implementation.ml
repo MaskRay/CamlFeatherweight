@@ -11,9 +11,8 @@ open Syntax
 open Type
 open Typing
 
-let stage = ref 4
-
-let verbose = ref true (* FIXME *)
+let stage = ref 3
+let verbose = ref false
 
 let typing_impl_expr loc e =
   push_level();
@@ -180,19 +179,19 @@ let typing_impl_letdef loc isrec pes =
   env
 
 let process_lambda oc lambda =
-  if !verbose && !stage = 3 then
-    dump_lambda 0 lambda;
-  if !stage >= 4 then (
+  if !stage = 2 then
+    dump_lambda 0 lambda
+  else if !stage >= 3 then (
     let init, fcts as code = compile_lambda lambda in
-    if !verbose then (
+    if !stage = 3 then (
       print_endline "Initialization";
       dump_zinc init;
       print_endline "";
       print_endline "Code for functions";
       dump_zinc fcts;
       print_endline ""
-    );
-    emit_phrase oc code
+    ) else
+      emit_phrase oc code
   )
 
 let compile_impl oc impl =
@@ -201,10 +200,9 @@ let compile_impl oc impl =
   match impl.im_desc with
   | Pimpl_expr e ->
       let ty = typing_impl_expr loc e in
-      print_endline "Expr";
       if !verbose then
         print_impl_expr ty;
-      if !stage >= 3 then
+      if !stage >= 2 then
          process_lambda oc @@ translate_expr e
   | Pimpl_typedef decl ->
       let ty_decl = typing_impl_typedef loc decl in
@@ -214,14 +212,18 @@ let compile_impl oc impl =
       let env = typing_impl_letdef loc isrec binds in
       if !verbose then
         print_impl_letdef env;
-      if !stage >= 3 then
+      if !stage >= 2 then
         process_lambda oc @@ translate_letdef impl.im_loc isrec binds
   | Pimpl_excdef decl ->
       let cd = typing_impl_excdef loc decl in
       if !verbose then
         print_impl_excdef cd
 
-let compile_implementation oc impls =
-  start_emit_phrase oc;
+let compile_implementation objfile impls =
+  let oc = if !stage >= 4 then open_out_bin objfile else stdout in
+  if !stage >= 4 then
+    start_emit_phrase oc;
   List.iter (compile_impl oc) impls;
-  end_emit_phrase oc;
+  if !stage >= 4 then
+    end_emit_phrase oc;
+  close_out oc

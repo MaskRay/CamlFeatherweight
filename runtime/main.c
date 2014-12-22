@@ -23,7 +23,6 @@ value global_value;
 hd_t first_atoms[256];
 value *arg_stack_low, *arg_stack_high;
 value *ret_stack_low, *ret_stack_high;
-value *trap_stack_low, *trap_stack_high;
 value tail = 0;
 jmp_buf external_raise_buf;
 
@@ -743,8 +742,6 @@ static void init_stacks(void)
   arg_stack_high = arg_stack_low + Arg_stack_size/sizeof(value);
   ret_stack_low = malloc(Arg_stack_size);
   ret_stack_high = ret_stack_low + Ret_stack_size/sizeof(struct return_frame);
-  trap_stack_low = malloc(Trap_stack_size);
-  trap_stack_high = trap_stack_low + Trap_stack_size/sizeof(struct trap_frame);
 }
 
 #define FAILED_TO_OPEN -1

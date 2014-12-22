@@ -11,7 +11,9 @@ type lexical_error =
 exception Toplevel
 exception Lexical_error of lexical_error * location
 
-let fatal_error s = failwith s
+let fatal_error msg =
+  Printf.eprintf "%s\n" msg;
+  exit 1
 
 (* output *)
 

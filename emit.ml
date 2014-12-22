@@ -164,7 +164,7 @@ let rec emit code =
     )
   in
   let out_header tag n =
-    if true || Sys.word_size = 32 then (
+    if Config.word_size = 32 then (
       out_tag tag; (* [0,8) *)
       o 0; (* [8,16) *)
       o (n lsl 4); (* [16,24) *)

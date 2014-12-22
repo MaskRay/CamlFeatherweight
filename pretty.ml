@@ -159,6 +159,9 @@ let rec pretty_expr pri expr =
           go pri_semi e1 <.> char ';' </>
           go (pri_semi-1) e2
         )
+    | Pexpr_try(body,pes) ->
+        text "try" <.> nest 2 (
+          softline <.> go 0 body)
     | Pexpr_tuple es ->
         begin match es with
         | [] -> assert false

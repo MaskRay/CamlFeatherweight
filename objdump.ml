@@ -197,8 +197,18 @@ let dump filename =
   with Invalid | End_of_file -> prerr_endline "Invalid obj file"
 
 let () =
+  let program_desc = "camlfwod [OBJECT|EXE]\n\
+    Caml Featherweight objdump\n\n\
+    camlfwod displays information about object files\n\
+    or bytecode executable files.\n"
+  in
+  let files = ref [] in
   init_jumptbl();
-  Arg.parse
-    []
-    dump
-    ("ML objdump")
+  Arg.parse []
+    (fun file -> files := file :: !files)
+    program_desc;
+  if !files = [] then (
+    prerr_string @@ Arg.usage_string [] program_desc;
+    exit 1
+  ) else
+    List.iter dump (List.rev !files)

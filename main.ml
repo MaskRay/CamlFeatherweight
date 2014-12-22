@@ -8,6 +8,7 @@ open Implementation
 
 let pretty = ref false
 let width = ref 72
+let compile_only = ref false
 
 let dbg_lexer lexbuf =
   match Lexer.main lexbuf with
@@ -58,6 +59,7 @@ let dbg_lexer lexbuf =
   | AND -> "and"
   | AS -> "as"
   | BEGIN -> "begin"
+  | DO -> "do"
   | DOWNTO -> "downto"
   | ELSE -> "else"
   | END -> "end"
@@ -76,19 +78,16 @@ let dbg_lexer lexbuf =
   | THEN -> "then"
   | TO -> "to"
   | TRUE -> "true"
+  | TRY -> "try"
   | TYPE -> "type"
   | WITH -> "with"
 
-let file f =
-  if not (Filename.check_suffix f ".ml") then (
-    Printf.eprintf "Input files should be `*.ml'\n";
-    exit 1
-  );
+let compile_file f =
+  if !verbose then
+    Printf.printf "Compiling %s\n" f;
   let basename = Filename.chop_suffix f ".ml" in
-  let obj_name = basename ^ ".zo" in
-
+  let objfile = basename ^ ".zo" in
   let ic = open_in_bin f in
-  let oc = open_out_bin obj_name in
   Location.input_chan := ic;
   let lexbuf = Lexing.from_channel ic in
   begin match !stage with
@@ -109,7 +108,7 @@ let file f =
         if !pretty then
           pprint_implementation !width impls
         else
-          compile_implementation oc impls
+          compile_implementation objfile impls
       with Lexical_error(err, l) ->
         (*Printf.eprintf "character %d-%d" l m;*)
         begin match err with
@@ -128,20 +127,50 @@ let file f =
             output_location l
         end
       | Failure l ->
-        prerr_endline "Syntax error";
-        close_in ic
+        prerr_endline "Syntax error"
   end;
   close_in ic;
-  close_out oc
+  objfile
 
 let () =
+  let program_desc = "camlfwc [-c] [-o exefile] *.ml\n\
+    Caml Featherweight compiler\n\n\
+    camlfwc compiles Caml source files (*.ml) and produces relocatable\n\
+    object files (*.zo). If \"-c\" option is not given, camlfwc will\n\
+    link those object files to produce a bytecode executable file.\n"
+  in
   let files = ref [] in
-  Arg.parse
-    [ "-d", Arg.Int(fun i -> stage := i), "stage"
-    ; "-p", Arg.Unit(fun () -> pretty := true), "pretty"
-    ; "-w", Arg.Int(fun i -> width := i), "pretty"
+  let exe = ref "a.out" in
+  let opts =
+    [ "-c", Arg.Unit(fun () -> compile_only := true), "compile only"
+    ; "-d", Arg.Int(fun i -> stage := i), "stage. 0:lex; 1:ast; 2:lambda; 3:zinc; 4:bytecode"
+    ; "-o", Arg.String(fun file -> exe := file), "bytecode executable output file"
+    ; "-p", Arg.Unit(fun () -> pretty := true), "pretty print sources"
+    ; "-w", Arg.Int(fun i -> width := i), "page width (used by pretty printer)"
     ; "-v", Arg.Unit(fun () -> Implementation.verbose := true), "verbose"
     ]
+  in
+  Arg.parse opts
     (fun file -> files := file :: !files)
-    ("compiler");
-    List.iter file (List.rev !files)
+    program_desc;
+  if !files = [] then (
+    prerr_string @@ Arg.usage_string opts program_desc;
+    exit 1
+  ) else (
+    let objs = ref [] in
+    let files = List.rev !files in
+    List.iter (fun file ->
+      if Filename.check_suffix file ".ml" then
+        objs := compile_file file :: !objs
+      else if Filename.check_suffix file ".zo" then
+        objs := file :: !objs
+      else
+        fatal_error "Input files should be source files (\"*.ml\") or object files (\"*.zo\")."
+    ) files;
+    if !stage >= 4 && not !compile_only && not !pretty then (
+      if !verbose then
+        Printf.printf "Linking %s -> %s\n" (String.concat " " !objs) !exe;
+      Ld.init ();
+      Ld.link !objs !exe
+    )
+  )

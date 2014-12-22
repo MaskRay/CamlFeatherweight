@@ -6,7 +6,7 @@
 
 typedef intptr_t value;
 typedef uintptr_t uvalue;
-typedef uint32_t hd_t;
+typedef uvalue hd_t;
 typedef unsigned char u8;
 typedef unsigned char *code_t;
 
@@ -57,12 +57,12 @@ bits  63  36 35    8 7   0
 */
 
 #define Gcsize_offset 8
-#if 1 || __WORDSIZE == 32
+#if WORD_SIZE == 32
 # define Size_offset 20
 #else
 # define Size_offset 36
 #endif
-#define Make_header(tag, size) (tag | (value)(size) << Size_offset)
+#define Make_header(tag, size) (tag | (hd_t)(size) << Size_offset)
 #define Wosize_hd(x) (x >> Size_offset)
 #define Wosize_val(v) Wosize_hd(Hd_val(v))
 #define Bosize_hd(x) ((x >> Size_offset) * sizeof(value))
@@ -71,9 +71,9 @@ bits  63  36 35    8 7   0
 #define Hd_val(x) (*(hd_t*)x)
 #define Op_val(x) ((value*)(x)+2)
 #define Field(x, i) (((value*)(x))[i+2])
-#define Color_hd(hd) ((hd) >> Gcsize_offset & (1 << Size_offset-Gcsize_offset) - 1)
+#define Color_hd(hd) ((hd) >> Gcsize_offset & ((hd_t)1 << Size_offset-Gcsize_offset) - 1)
 #define Color_val(v) Color_hd(Hd_val(v))
-#define Set_color_val(v,col) (Hd_val(v) & ~((1<<Size_offset)-(1<<Gcsize_offset)) | (col)<<Gcsize_offset)
+#define Set_color_val(v,col) (Hd_val(v) & ~(((hd_t)1<<Size_offset)-((hd_t)1<<Gcsize_offset)) | (hd_t)(col)<<Gcsize_offset)
 
 // tag
 

@@ -7,3 +7,6 @@ tags
 /runtime/jumptable.h
 /opcode.ml
 /cprim.ml
+/camlfwc
+/camlfwod
+/camlfwrun

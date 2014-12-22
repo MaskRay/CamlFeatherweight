@@ -198,14 +198,5 @@ let link objs exe =
   output_bin_int oc global_off;
   output_bin_int oc !global_tbl_used
 
-let () =
+let init () =
   Array.iteri (fun i name -> Hashtbl.replace prim_tbl name i) Cprim.name_of_prims;
-  let files = ref [] in
-  let exe = ref "a.out" in
-  Arg.parse
-    [ "-o", Arg.String(fun filename -> exe := filename), "outfile"
-    ; "-v", Arg.Unit(fun () -> verbose := true), "verbose"
-    ]
-    (fun filename -> files := filename :: !files)
-    ("ML ld");
-  link (List.rev !files) !exe
