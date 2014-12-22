@@ -25,6 +25,7 @@ value *arg_stack_low, *arg_stack_high;
 value *ret_stack_low, *ret_stack_high;
 value *trap_stack_low, *trap_stack_high;
 value tail = 0;
+jmp_buf external_raise_buf;
 
 static inline void modify(value *x, value y)
 {
@@ -638,6 +639,8 @@ value interpret(code_t code)
       tp = trapsp;
       Next;
     Inst(RAISE):
+      if (! tp)
+        longjmp(external_raise_buf, 1);
       rsp = (value *)tp;
       pc = trapsp->pc;
       env = alloc_block(trapsp->env, 1);
@@ -744,10 +747,6 @@ static void init_stacks(void)
   trap_stack_high = trap_stack_low + Trap_stack_size/sizeof(struct trap_frame);
 }
 
-static void init_global_value(void)
-{
-}
-
 #define FAILED_TO_OPEN -1
 #define BAD_MAGIC -2
 #define TRUNCATED_FILE -3
@@ -851,25 +850,27 @@ int main(int argc, char *argv[])
 
   init_atoms();
   init_stacks();
-  init_global_value();
-  int r = run(argv[optind]);
-  if (r < 0)
-    switch (r) {
-    case FAILED_TO_OPEN:
-      fatal_error_fmt("Failed to open \"%s\"\n", strerror(errno));
-      break;
-    case TRUNCATED_FILE:
-      fatal_error_fmt("\"%s\" seems to be truncated\n", argv[optind]);
-      break;
-    case INVALID_EXE:
-      fatal_error_fmt("\"%s\" is not a bytecode executable file\n", argv[optind]);
-      break;
-    case BAD_MAGIC:
-      fatal_error_fmt("\"%s\" is not a bytecode executable file: missing magic \"%s\"\n", argv[optind], MAGIC);
-      break;
-    case SYSERROR:
-      fatal_error(strerror(errno));
-      break;
-    }
+  if (! setjmp(external_raise_buf)) {
+    int r = run(argv[optind]);
+    if (r < 0)
+      switch (r) {
+      case FAILED_TO_OPEN:
+        fatal_error_fmt("Failed to open \"%s\"\n", strerror(errno));
+        break;
+      case TRUNCATED_FILE:
+        fatal_error_fmt("\"%s\" seems to be truncated\n", argv[optind]);
+        break;
+      case INVALID_EXE:
+        fatal_error_fmt("\"%s\" is not a bytecode executable file\n", argv[optind]);
+        break;
+      case BAD_MAGIC:
+        fatal_error_fmt("\"%s\" is not a bytecode executable file: missing magic \"%s\"\n", argv[optind], MAGIC);
+        break;
+      case SYSERROR:
+        fatal_error(strerror(errno));
+        break;
+      }
+  } else
+    fatal_error("Fatal error: uncaught exception");
   return 0;
 }

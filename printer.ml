@@ -51,4 +51,5 @@ let print_impl_typedef = function
 
 let print_impl_excdef cd =
   print_string "exception ";
-  print_constr_decl cd
+  print_constr_decl cd;
+  print_endline ""
