@@ -132,17 +132,33 @@ let dump_data oc =
   done;
   output oc !buf 0 !pos
 
-let link objs exe =
-  let oc = open_out_bin exe in
-  let scan first obj =
-    if not (Filename.check_suffix obj ".zo") then (
+let link objs exefile =
+  let oc = open_out_bin exefile in
+  let scan first objfile =
+    if not (Filename.check_suffix objfile ".zo") then (
       Printf.eprintf "Object files should be `*.zo'\n";
       exit 1
     );
     let buf = Bytes.create 256 in
-    let ic = open_in_bin obj in
-    if input ic buf 0 4 <> 4 || Bytes.sub_string buf 0 4 <> "meow" then
-      raise Invalid;
+    let ic = open_in_bin objfile in
+    if input ic buf 0 4 <> 4 then (
+      Printf.eprintf "Object file \"%s\" is invalid\n" objfile;
+      exit 2
+    );
+    if Bytes.sub_string buf 0 4 = Config.obj_magic32 then (
+      if Config.word_size <> 32 then (
+        Printf.eprintf "Cannot link 32-bit object file \"%s\".\n" objfile;
+        exit 2
+      )
+    ) else if Bytes.sub_string buf 0 4 = Config.obj_magic64 then (
+      if Config.word_size <> 64 then (
+        Printf.eprintf "Cannot link 32-bit object file \"%s\".\n" objfile;
+        exit 2
+      )
+    ) else (
+      Printf.eprintf "Object file \"%s\" has invalid magic.\n" objfile;
+      exit 2
+    );
     let phr_idx_off = input_bin_int ic in
     seek_in ic phr_idx_off;
     let phr_idx = (input_value ic : compiled_phrase list) in
@@ -187,7 +203,10 @@ let link objs exe =
       ) phr_idx
   in
   List.iter (scan true) objs;
-  output_bytes oc "woem";
+  if Config.word_size = 32 then
+    output_bytes oc Config.exe_magic32
+  else
+    output_bytes oc Config.exe_magic64;
   output_bin_int oc 0; (* global data offset *)
   output_bin_int oc 0; (* global data num *)
   List.iter (scan false) objs;

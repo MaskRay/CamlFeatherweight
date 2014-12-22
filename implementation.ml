@@ -11,7 +11,7 @@ open Syntax
 open Type
 open Typing
 
-let stage = ref 3
+let stage = ref 4
 let verbose = ref false
 
 let typing_impl_expr loc e =

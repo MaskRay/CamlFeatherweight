@@ -12,7 +12,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAGIC "woem"
+#define WORD_SIZE __WORDSIZE
 
-//#define WORD_SIZE __WORDSIZE
-#define WORD_SIZE 64
+#if WORD_SIZE == 32
+# define MAGIC "ml32"
+#else
+# define MAGIC "ml64"
+#endif

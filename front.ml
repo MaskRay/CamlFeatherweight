@@ -253,8 +253,14 @@ let rec conquer_matching =
       end
   | _ -> assert false
 
-let partial_fun =
-  Lprim(Praise, [Lprim(Pmakeblock match_failure_tag, [])])
+let partial_fun (l,m) =
+  Lprim(Praise, [Lprim(Pmakeblock match_failure_tag, [
+    Lprim(Pmakeblock(Constr_tag_regular(1,0)),
+    [ Lconst(Const_base(Const_string "//toplevel//"))
+    ; Lconst(Const_base(Const_int l))
+    ; Lconst(Const_base(Const_int m))
+    ])
+  ])])
 
 let translate_matching fail env rows =
   let rec go = function
@@ -360,7 +366,7 @@ and transl_match env psas =
 and transl_match_check loc env psas =
   let rows = List.map (fun (ps,act) ->
     ps, transl_expr (make_env env ps) act) psas in
-  translate_matching partial_fun env rows
+  translate_matching (partial_fun loc) env rows
 
 let translate_expr = transl_expr []
 
@@ -393,4 +399,4 @@ let translate_letdef loc isrec binds =
         let env = List.fold_left (fun env p -> paths_of_pat [] p :: env) [] ps in
         let store var = Lprim(Psetglobal(Lident var), [transl_access env var]) in
         Llet(transl_bind [] binds,
-          translate_matching partial_fun [] [ps, make_sequence store vars])
+          translate_matching (partial_fun loc) [] [ps, make_sequence store vars])

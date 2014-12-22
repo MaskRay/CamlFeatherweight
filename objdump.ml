@@ -170,28 +170,28 @@ let dump filename =
     let ic = open_in_bin filename in
     if input ic buf 0 4 <> 4 then
       raise Invalid;
-    match Bytes.sub_string buf 0 4 with
-    | "meow" ->
-        relocatable := true;
-        print_endline "Relocatable file";
-        let phr_idx_off = input_bin_int ic in
-        seek_in ic phr_idx_off;
-        let phr_idx = (input_value ic : compiled_phrase list) in
-        List.iter (print_phr_entry ic) phr_idx
-    | "woem" ->
-        relocatable := false;
-        print_endline "Executable";
-        let global_off = input_bin_int ic in
-        let global_num = input_bin_int ic in
-        let code_len = global_off-12 in
-        Printf.printf "\nLength %d\n" code_len;
-        print_code ic code_len;
-        print_endline "\nGlobal value";
-        for i = 0 to global_num-1 do
-          print_value ic i
-        done
-    | _ ->
-        raise Invalid
+    let magic = Bytes.sub_string buf 0 4 in
+    if magic = Config.obj_magic then (
+      relocatable := true;
+      print_endline "Relocatable file";
+      let phr_idx_off = input_bin_int ic in
+      seek_in ic phr_idx_off;
+      let phr_idx = (input_value ic : compiled_phrase list) in
+      List.iter (print_phr_entry ic) phr_idx
+    ) else if magic = Config.exe_magic then (
+      relocatable := false;
+      print_endline "Executable";
+      let global_off = input_bin_int ic in
+      let global_num = input_bin_int ic in
+      let code_len = global_off-12 in
+      Printf.printf "\nLength %d\n" code_len;
+      print_code ic code_len;
+      print_endline "\nGlobal value";
+      for i = 0 to global_num-1 do
+        print_value ic i
+      done
+    ) else
+      raise Invalid
   in
   try go ()
   with Invalid | End_of_file -> prerr_endline "Invalid obj file"
