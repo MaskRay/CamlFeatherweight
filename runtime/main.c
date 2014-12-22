@@ -566,12 +566,13 @@ value interpret(code_t code)
     }
     Inst(MAKESTRING): {
       u32 len = Int_val(acc);
-      u32 size = len/4+1;
+      u32 w = WORD_SIZE/8;
+      u32 size = len/w+1;
       value block = alloc_with_hd(size, String_make_header(size));
       memset(&Field(block, 0), Int_val(*asp++), len);
       u8 *last = (u8*)&Field(block, size-1);
-      u8 pad = 4-len%4;
-      for (u32 i = len%4; i < 4; i++)
+      u8 pad = w-len%w;
+      for (u32 i = len%w; i < w; i++)
         last[i] = pad;
       acc = block;
       Next;
@@ -781,12 +782,12 @@ int run(const char *filename)
     if (read(fd, buf, 1) != 1)
       return TRUNCATED_FILE;
     if (buf[0] == 1) {
-      read(fd, &val, 4);
+      read(fd, &val, sizeof(value));
       if (val % 2 == 0)
         return INVALID_EXE;
       Field(global_value, i) = val;
     } else if (buf[0] == 0) {
-      if (read(fd, &val, 4) != 4)
+      if (read(fd, &val, sizeof(value)) != sizeof(value))
         return TRUNCATED_FILE;
       value block;
       switch (Tag_hd(val)) {
@@ -800,7 +801,7 @@ int run(const char *filename)
         break;
       }
       REP(j, size) {
-        if (read(fd, &val, 4) != 4)
+        if (read(fd, &val, sizeof(value)) != sizeof(value))
           return TRUNCATED_FILE;
         Field(block, j) = val;
       }

@@ -86,50 +86,107 @@ let dump_data oc =
     Bytes.set !buf !pos (Int32.(logand u8 255l |> to_int) |> char_of_int);
     incr pos
   in
+  let o' u8 =
+    let len = Bytes.length !buf in
+    if !pos >= len then (
+      let newbuf = Bytes.create (2*len) in
+      Bytes.blit !buf 0 newbuf 0 !pos;
+      buf := newbuf
+    );
+    Bytes.set !buf !pos (Int64.(logand u8 255L |> to_int) |> char_of_int);
+    incr pos
+  in
   let oooo u32 =
     o u32;
     o Int32.(shift_right u32 8);
     o Int32.(shift_right u32 16);
     o Int32.(shift_right u32 24)
   in
+  let oooo' u64 =
+    o' u64;
+    o' Int64.(shift_right u64 8);
+    o' Int64.(shift_right u64 16);
+    o' Int64.(shift_right u64 24);
+    o' Int64.(shift_right u64 32);
+    o' Int64.(shift_right u64 40);
+    o' Int64.(shift_right u64 48);
+    o' Int64.(shift_right u64 56)
+  in
 
   let entries = ref [] and last = ref (-1) in
   Hashtbl.iter (fun c slot -> entries := (slot,c) :: !entries) const_tbl;
   entries := List.sort compare !entries;
-  List.iter (fun (slot,c) ->
-    for i = !last+1 to slot-1 do
+  if Config.word_size = 32 then (
+    List.iter (fun (slot,c) ->
+      for i = !last+1 to slot-1 do
+        o 1l;
+        oooo 1l
+      done;
+      last := slot;
+      match c with
+      | Const_char x ->
+          o 1l;
+          oooo Int32.(int_of_char x*2+1 |> of_int)
+      | Const_int x ->
+          o 1l;
+          oooo Int32.(add (mul (of_int x) 2l) 1l)
+      | Const_float x ->
+          let x = Int64.bits_of_float x in
+          o 0l;
+          oooo (make_header double_tag 2);
+          oooo (Int64.to_int32 x);
+          oooo Int64.(shift_right x 32 |> to_int32)
+      | Const_string x ->
+          let len = String.length x in
+          let w = Config.word_size/8 in
+          let size = len/w+1 in
+          o 0l;
+          oooo (make_string_header size);
+          String.iter (fun ch -> int_of_char ch |> Int32.of_int |> o) x;
+          let pad = w - len mod w in
+          for i = 1 to pad do
+            o (Int32.of_int pad)
+          done
+    ) !entries;
+    for i = !last+1 to Hashtbl.length global_tbl - 1 do
       o 1l;
       oooo 1l
-    done;
-    last := slot;
-    match c with
-    | Const_char x ->
+    done
+  ) else (
+    List.iter (fun (slot,c) ->
+      for i = !last+1 to slot-1 do
         o 1l;
-        oooo Int32.(int_of_char x*2+1 |> of_int)
-    | Const_int x ->
-        o 1l;
-        oooo Int32.(add (mul (of_int x) 2l) 1l)
-    | Const_float x ->
-        let x = Int64.bits_of_float x in
-        o 0l;
-        oooo (make_header double_tag 2);
-        oooo (Int64.to_int32 x);
-        oooo Int64.(shift_right x 32 |> to_int32)
-    | Const_string x ->
-        let len = String.length x in
-        let size = len/4+1 in
-        o 0l;
-        oooo (make_string_header size);
-        String.iter (fun ch -> int_of_char ch |> Int32.of_int |> o) x;
-        let pad = 4 - len mod 4 in
-        for i = 1 to pad do
-          o (Int32.of_int pad)
-        done
-  ) !entries;
-  for i = !last+1 to Hashtbl.length global_tbl - 1 do
-    o 1l;
-    oooo 1l
-  done;
+        oooo' 1L
+      done;
+      last := slot;
+      match c with
+      | Const_char x ->
+          o 1l;
+          oooo' Int64.(int_of_char x*2+1 |> of_int)
+      | Const_int x ->
+          o 1l;
+          oooo' Int64.(add (mul (of_int x) 2L) 1L)
+      | Const_float x ->
+          o 0l;
+          oooo' (make_header' double_tag 2);
+          oooo' (Int64.bits_of_float x)
+      | Const_string x ->
+          let len = String.length x in
+          let w = Config.word_size/8 in
+          let size = len/w+1 in
+          o 0l;
+          oooo' (make_string_header' size);
+          String.iter (fun ch -> int_of_char ch |> Int32.of_int |> o) x;
+          let pad = w - len mod w in
+          for i = 1 to pad do
+            o (Int32.of_int pad)
+          done
+    ) !entries;
+    for i = !last+1 to Hashtbl.length global_tbl - 1 do
+      o 1l;
+      oooo' 1L
+    done
+  );
   output oc !buf 0 !pos
 
 let link objs exefile =
@@ -203,10 +260,7 @@ let link objs exefile =
       ) phr_idx
   in
   List.iter (scan true) objs;
-  if Config.word_size = 32 then
-    output_bytes oc Config.exe_magic32
-  else
-    output_bytes oc Config.exe_magic64;
+  output_bytes oc Config.exe_magic;
   output_bin_int oc 0; (* global data offset *)
   output_bin_int oc 0; (* global data num *)
   List.iter (scan false) objs;
