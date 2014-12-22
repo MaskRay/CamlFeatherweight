@@ -72,7 +72,10 @@ let constr_true =
   }
 
 let match_failure_tag =
-  Constr_tag_extensible(Lident "Match_failure",0)
+  Constr_tag_extensible(Lident "Match_failure",new_exttag_stamp())
+
+let division_by_zero_tag =
+  Constr_tag_extensible(Lident "Division_by_zero",new_exttag_stamp())
 
 let constr_match_failure =
   f "Match_failure"
@@ -80,6 +83,14 @@ let constr_match_failure =
   ; cs_arg=type_product [type_string; type_int; type_int]
   ; cs_tag=match_failure_tag
   ; cs_kind=Constr_regular
+  }
+
+let constr_division_by_zero =
+  f "Division_by_zero"
+  { cs_res={ typ_desc=Tconstr(type_constr_exn, []); typ_level=notgeneric }
+  ; cs_arg=type_product []
+  ; cs_tag=division_by_zero_tag
+  ; cs_kind=Constr_constant
   }
 
 let constr_nil =
@@ -171,7 +182,8 @@ let () =
   ];
   List.iter add_global_constr
   [ constr_void; constr_false; constr_true; constr_nil; constr_cons
-  ; constr_none; constr_some; constr_match_failure
+  ; constr_none; constr_some
+  ; constr_match_failure; constr_division_by_zero
   ]
 
 let () =

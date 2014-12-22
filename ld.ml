@@ -218,4 +218,14 @@ let link objs exefile =
   output_bin_int oc !global_tbl_used
 
 let init () =
-  Array.iteri (fun i name -> Hashtbl.replace prim_tbl name i) Cprim.name_of_prims;
+  Array.iteri (fun i name ->
+    Hashtbl.replace prim_tbl name i)
+    Cprim.name_of_prims;
+  List.iter (fun tag ->
+    match tag with
+    | Constr_tag_regular _ -> ()
+    | Constr_tag_extensible(id,stamp) ->
+        ignore @@ make_slot_for_tag (id,stamp))
+    [ Builtin.match_failure_tag
+    ; Builtin.division_by_zero_tag
+    ]

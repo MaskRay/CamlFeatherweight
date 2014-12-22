@@ -17,6 +17,8 @@
 #define Ret_stack_size 16384
 #define Trap_stack_size 16384
 
+#define DIVISION_BY_ZERO_EXN 1 // ld.ml division_by_zero_tag
+
 bool trace = false;
 bool verbose = false;
 value global_value;
@@ -426,8 +428,12 @@ value interpret(code_t code)
       acc = tmp;
       Next;
     Inst(DIVINT):
-      // TODO exn
-      acc = Val_int((acc-1)/(*asp++-1));
+      tmp = *asp++ - 1;
+      if (! tmp) {
+        acc = Atom(DIVISION_BY_ZERO_EXN);
+        goto raise;
+      }
+      acc = Val_int((acc-1)/tmp);
       Next;
     Inst(DUMMY): {
       u8 n = *pc++;
@@ -571,7 +577,12 @@ value interpret(code_t code)
       Next;
     }
     Inst(MODINT):
-      acc = (acc-1) % (*asp++-1) + 1;
+      tmp = *asp++ - 1;
+      if (! tmp) {
+        acc = Atom(DIVISION_BY_ZERO_EXN);
+        goto raise;
+      }
+      acc = (acc-1) % tmp + 1;
       Next;
     Inst(MULFLOAT):
       tmp = alloc(Double_tag, Double_wosize);
@@ -638,6 +649,7 @@ value interpret(code_t code)
       tp = trapsp;
       Next;
     Inst(RAISE):
+raise:
       if (! tp)
         longjmp(external_raise_buf, 1);
       rsp = (value *)tp;
@@ -709,12 +721,11 @@ value interpret(code_t code)
       acc = Val_int(Tag_val(acc));
       Next;
     Inst(TERMAPPLY):
-termapply: {
+termapply:
       pc = Code_val(acc);
       env = alloc_block(Env_val(acc), 1);
       Field(env, 0) = *asp++;
       Next;
-    }
     Inst(UPDATE): {
       u8 n = *pc++;
       modify(&Field(env, n), acc);
