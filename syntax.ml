@@ -158,9 +158,11 @@ and pattern_desc =
   | Ppat_var of string
 
 (* RHS of type xx = ... *)
+type constr_decl = string * type_expression option
+
 type type_decl =
   | Ptd_abstract
-  | Ptd_variant of (string * type_expression option) list
+  | Ptd_variant of constr_decl list
   | Ptd_alias of type_expression
 
 let rec expr_is_pure expr =
@@ -177,6 +179,7 @@ and impl_desc =
   | Pimpl_expr of expression
   | Pimpl_typedef of (string * string list * type_decl) list
   | Pimpl_letdef of bool * (pattern * expression) list
+  | Pimpl_excdef of constr_decl
 
 (* global value *)
 

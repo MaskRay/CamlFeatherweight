@@ -26,7 +26,7 @@ let make_slot_for_const c =
     incr global_tbl_used;
     Hashtbl.replace const_tbl c s;
     if !verbose then
-      Printf.printf "%s: slot %d of global table" (show_constant c) s;
+      Printf.printf "%s: slot %d of global table\n" (show_constant c) s;
     s
 
 let make_slot_for_global id =
@@ -41,7 +41,7 @@ let make_slot_for_global id =
     incr global_tbl_used;
     Hashtbl.replace global_tbl id s;
     if !verbose then
-      Printf.printf "%s: slot %d of global table" (string_of_long_ident id) s;
+      Printf.printf "%s: slot %d of global table\n" (string_of_long_ident id) s;
     s
 
 let make_slot_for_tag (id,stamp as tag) =
@@ -55,7 +55,7 @@ let make_slot_for_tag (id,stamp as tag) =
     );
     Hashtbl.replace tag_tbl tag s;
     if !verbose then
-      Printf.printf "%s,%d: slot %d of tag table" (string_of_long_ident id)
+      Printf.printf "%s,%d: slot %d of tag table\n" (string_of_long_ident id)
       stamp s;
     s
 

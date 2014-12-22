@@ -14,6 +14,7 @@ List.iter (fun (str,tok) -> Hashtbl.replace keyword_tbl str tok) [
   "downto", DOWNTO;
   "else", ELSE;
   "end", END;
+  "exception", EXCEPTION;
   "for", FOR;
   "fun", FUN;
   "function", FUNCTION;

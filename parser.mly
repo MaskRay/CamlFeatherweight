@@ -130,6 +130,7 @@ let make_apply e1 e2 =
 %token DOWNTO         /* "downto" */
 %token ELSE           /* "else" */
 %token END            /* "end" */
+%token EXCEPTION      /* "exception" */
 %token FOR            /* "for" */
 %token FUN            /* "fun" */
 %token FUNCTION       /* "function" */
@@ -208,6 +209,7 @@ structure_tail:
 structure_item:
   | TYPE type_decl_list { make_impl(Pimpl_typedef $2) }
   | LET rec_flag let_binding_list { make_impl(Pimpl_letdef($2, $3)) }
+  | EXCEPTION constr_decl { make_impl(Pimpl_excdef $2) }
 
 /* type */
 

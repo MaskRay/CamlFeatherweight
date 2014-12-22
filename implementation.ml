@@ -23,6 +23,45 @@ let typing_impl_expr loc e =
     gen_type ty;
   ty
 
+let submit_variant ty_res cs =
+  let n = List.length cs in
+  let rec go i acc = function
+    | [] -> List.rev acc
+    | (name,arg)::xs ->
+        match arg with
+        | None ->
+            let constr =
+              { qualid=Lident name
+              ; info={ cs_res=ty_res
+                     ; cs_arg=type_unit
+                     ; cs_tag=Constr_tag_regular(n,i)
+                     ; cs_kind=Constr_constant
+                     }
+              }
+            in
+            add_global_constr constr;
+            go (i+1) (constr::acc) xs
+        | Some arg ->
+            let ty_arg = type_of_type_expression true arg in
+            (* TODO kind *)
+            let constr =
+              { qualid=Lident name
+              ; info={ cs_res=ty_res
+                     ; cs_arg=ty_arg
+                     ; cs_tag=Constr_tag_regular(n,i)
+                     ; cs_kind=Constr_regular
+                     }
+              }
+            in
+            add_global_constr constr;
+            go (i+1) (constr::acc) xs
+  in
+  let cds = go 0 [] cs in
+  pop_level();
+  gen_type ty_res;
+  List.iter (fun cd -> gen_type cd.info.cs_arg) cds;
+  Variant_type cds
+
 let typing_impl_typedef loc decl : (typ * type_components) list =
   let submit (name,args,def) =
     let ty_constr =
@@ -36,45 +75,6 @@ let typing_impl_typedef loc decl : (typ * type_components) list =
       } in
     add_global_type ty_desc;
     ty_desc,args,def
-  in
-  let submit_variant ty_res cs =
-    let n = List.length cs in
-    let rec go i acc = function
-      | [] -> List.rev acc
-      | (name,arg)::xs ->
-          match arg with
-          | None ->
-              let constr =
-                { qualid=Lident name
-                ; info={ cs_res=ty_res
-                       ; cs_arg=type_unit
-                       ; cs_tag=Constr_tag_regular(n,i)
-                       ; cs_kind=Constr_constant
-                       }
-                }
-              in
-              add_global_constr constr;
-              go (i+1) (constr::acc) xs
-          | Some arg ->
-              let ty_arg = type_of_type_expression true arg in
-              (* TODO kind *)
-              let constr =
-                { qualid=Lident name
-                ; info={ cs_res=ty_res
-                       ; cs_arg=ty_arg
-                       ; cs_tag=Constr_tag_regular(n,i)
-                       ; cs_kind=Constr_regular
-                       }
-                }
-              in
-              add_global_constr constr;
-              go (i+1) (constr::acc) xs
-    in
-    let cds = go 0 [] cs in
-    pop_level();
-    gen_type ty_res;
-    List.iter (fun cd -> gen_type cd.info.cs_arg) cds;
-    Variant_type cds
   in
   let submit_abbrev ty_constr ty_params body =
     let ty = type_of_type_expression true body in
@@ -117,6 +117,33 @@ let typing_impl_typedef loc decl : (typ * type_components) list =
     check_recursive_abbrev ty_desc.info.ty_constr
   ) decl;
   r
+
+let typing_impl_excdef loc (name,arg) : constr_desc global =
+  let cd =
+    begin match arg with
+    | None ->
+        let id = Lident name in
+        { qualid=id
+        ; info={ cs_res=type_exn
+               ; cs_arg=type_unit
+               ; cs_tag=Constr_tag_extensible(id,new_type_stamp())
+               ; cs_kind=Constr_constant
+               }
+        }
+    | Some arg ->
+        let id = Lident name in
+        let ty_arg = type_of_type_expression true arg in
+        { qualid=id
+        ; info={ cs_res=type_exn
+               ; cs_arg=ty_arg
+               ; cs_tag=Constr_tag_extensible(id,new_type_stamp())
+               ; cs_kind=Constr_regular
+               }
+        }
+    end
+  in
+  add_global_constr cd;
+  cd
 
 let typing_impl_letdef loc isrec pes =
   push_level();
@@ -189,6 +216,10 @@ let compile_impl oc impl =
         print_impl_letdef env;
       if !stage >= 3 then
         process_lambda oc @@ translate_letdef impl.im_loc isrec binds
+  | Pimpl_excdef decl ->
+      let cd = typing_impl_excdef loc decl in
+      if !verbose then
+        print_impl_excdef cd
 
 let compile_implementation oc impls =
   start_emit_phrase oc;

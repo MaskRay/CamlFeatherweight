@@ -48,3 +48,7 @@ let print_impl_typedef = function
         print_typedef1 dcl
       ) dcls;
       print_endline ""
+
+let print_impl_excdef cd =
+  print_string "exception ";
+  print_constr_decl cd
