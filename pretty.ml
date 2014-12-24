@@ -1,13 +1,17 @@
-open Fpretty
+open Prettiest
 open Syntax
 
 let pri_in = 5
 let pri_semi = 10
-let pri_else = 20
 let pri_function = 30
 let pri_with = 30
-let pri_and = 40
+let pri_and = 35
+let pri_then = 37
+let pri_else = 38
+let pri_as = 42
+let pri_bar = 43
 let pri_comma = 45
+let pri_minusgreater = 47
 let pri_barbar = 50
 let pri_amperamper = 52
 let pri_equal = 55
@@ -17,17 +21,10 @@ let pri_coloncolon = 65
 let pri_infix2 = 70
 let pri_infix3 = 80
 let pri_infix4 = 90
-let pri_as = 100
+let pri_unary_minus = 95
 let pri_app = 110
 let pri_dot = 120
-
-let pri_te_comma = 0
-let pri_te_arrow = 10
-let pri_te_constr = 20
-
-let pri_p_as = 0
-let pri_p_semi = 10
-let pri_p_comma = 20
+let pri_prefix = 130
 
 let paren flag doc =
   if flag then
@@ -35,23 +32,51 @@ let paren flag doc =
   else
     doc
 
-let pretty_constant = function
+let pretty_constant pri = function
   | Const_char x ->
       char '\'' <.> text (Char.escaped x) <.> char '\''
   | Const_int x ->
-      text @@ string_of_int x
+      let d = text @@ string_of_int x in
+      if x < 0 then
+        paren (pri>=pri_unary_minus) d
+      else
+        d
   | Const_float x ->
-      text @@ string_of_float x
+      let d = text @@ string_of_float x in
+      if x < 0. then
+        paren (pri>=pri_unary_minus) d
+      else
+        d
   | Const_string x ->
       char '"' <.> text (String.escaped x) <.> char '"'
 
 let pretty_longid id = text @@ string_of_long_ident id
 
+let pretty_tuple pretty pri xs =
+  match xs with
+  | [] -> assert false
+  | x::xs ->
+      paren (pri>=pri_comma) @@
+      List.fold_left (fun acc x ->
+        acc <//> char ',' </> pretty pri_comma x
+      ) (pretty pri_comma x) xs
+
+let pretty_array pretty pri xs =
+  match xs with
+  | [] -> assert false
+  | x::xs ->
+      let con =
+        List.fold_left (fun acc x ->
+          acc <//> char ';' </> pretty pri_semi x
+        ) (pretty pri_semi x) xs
+      in
+      text "[|" </> con </> text "|]"
+
 let rec pretty_expr pri expr =
   let rec go pri expr =
     match expr.e_desc with
     | Pexpr_apply(e,es) ->
-        let fall () = fill_sep @@ List.map (go pri) (e::es) in
+        let fall () = fill_sep @@ List.map (go pri_app) (e::es) in
         begin match es with
         | [x; y] ->
           begin match e.e_desc with
@@ -71,12 +96,12 @@ let rec pretty_expr pri expr =
               else if op.[0] = '+' || op.[0] = '-' then
                 paren (pri>=pri_infix2) (
                   go (pri_infix2-1) x </> text op </> go pri_infix2 y)
-              else if String.length op >= 2 && op.[0] = '*' && op.[1] = '*' then
-                paren (pri>=pri_infix4) (
-                  go pri_infix4 x </> text op </> go (pri_infix4-1) y)
-              else if op.[0] = '*' || op.[0] = '/' then
+              else if op.[0] = '*' || op.[0] = '/' || op = "land" || op = "lor" || op = "lxor" then
                 paren (pri>=pri_infix3) (
                   go (pri_infix3-1) x </> text op </> go pri_infix3 y)
+              else if String.length op >= 2 && op.[0] = '*' && op.[1] = '*' || op = "lsl" || op = "lsr" then
+                paren (pri>=pri_infix4) (
+                  go pri_infix4 x </> text op </> go (pri_infix4-1) y)
               else
                 fall()
           | _ -> fall()
@@ -84,16 +109,9 @@ let rec pretty_expr pri expr =
         | _ -> fall()
         end
     | Pexpr_array es ->
-        let con = match es with
-          | [] -> empty
-          | e::es ->
-              List.fold_left (fun acc e ->
-                acc <//> char ';' </> go pri_semi e
-              ) (go pri_semi e) es
-        in
-        text "[|" </> con </> text "|]"
+        pretty_array go pri es
     | Pexpr_constant c ->
-        pretty_constant c
+        pretty_constant pri c
     | Pexpr_constr(id,e) ->
         begin match e with
         | None ->
@@ -122,21 +140,30 @@ let rec pretty_expr pri expr =
         nest 2 (line <.> go 0 body) <$>
         text "done"
     | Pexpr_function alts ->
-        text "function TODO"
+        let keyword = text "function" in
+        begin match alts with
+        | [] -> assert false
+        | [pe] ->
+            keyword <.> nest 2 (pretty_action pe)
+        | _ ->
+            align (keyword <$> char '|' <.>
+              sep_by (line <.> char '|')
+              (List.map (fun pe' -> nest 2 @@ pretty_action pe') alts))
+        end
     | Pexpr_ident id ->
         pretty_longid id
     | Pexpr_if(cond,ifso,ifnot) ->
-        let ifso =
-          text "if" <+> align (go pri_else cond) </> text "then" <.>
-          nest 2 (line <.> go pri_else ifso)
+        let ifso pri' =
+          text "if" <+> align (go pri cond) </> text "then" <.>
+          nest 2 (line <.> go pri ifso)
         in
         paren (pri>=pri_else)
         begin match ifnot with
         | None ->
-            ifso
+            ifso pri_then
         | Some ifnot ->
             align (
-              ifso <$>
+              ifso pri_else <$>
               text "else" <.>
               nest 2 (line <.> go pri_else ifnot)
             )
@@ -145,109 +172,135 @@ let rec pretty_expr pri expr =
         let keyword =
           if isrec then text "let" else text "let" <+> text "rec"
         in
-        paren (pri>=pri_in) (
-          keyword </>
-          sep_by (space <.> text "and" <.> softline)
-          (List.map (fun (p,e) ->
-            pretty_pat 0 p <+> char '=' <+> align (pretty_expr 0 e)
-          ) binds) <$>
-          text "in" <$>
-          pretty_expr (pri_in-1) body
-        )
+        begin match binds with
+        | [] -> assert false
+        | [pe] ->
+            align (keyword <.> nest 2 (pretty_bind pe) </>
+              text "in" <$>
+              go (pri_in-1) body)
+        | pe::pes ->
+            align (keyword <.> nest 2 (pretty_bind pe) </> text "and" <.>
+              sep_by (space <.> text "and" <.> softline)
+              (List.map (fun pe' -> nest 2 @@ pretty_bind pe') pes) </>
+              text "in" <$> go (pri_in-1) body)
+        end
     | Pexpr_sequence(e1,e2) ->
         paren (pri>=pri_semi) (
           go pri_semi e1 <.> char ';' </>
           go (pri_semi-1) e2
         )
     | Pexpr_try(body,pes) ->
-        text "try" <.> nest 2 (
-          softline <.> go 0 body)
+        let keyword = text "with" in
+        align (
+          (text "try" <.> nest 2 (softline <.>
+            go 0 body)) <$>
+          begin match pes with
+          | [] -> assert false
+          | [pe] ->
+              keyword <.> nest 4 (pretty_action pe)
+          | _ ->
+              align (keyword <$> char '|' <.>
+                sep_by (line <.> char '|')
+                (List.map (fun pe' -> nest 4 @@ pretty_action pe') pes))
+          end)
     | Pexpr_tuple es ->
-        begin match es with
-        | [] -> assert false
-        | e::es ->
-            paren (pri>=pri_comma) @@
-            List.fold_left (fun acc e ->
-              acc <.> char ',' <$> go pri_comma e
-            ) (go pri_comma e) es
-        end
+        pretty_tuple go pri es
   in
   go pri expr
+
+and pretty_bind (p,e) =
+  softline <.>
+    pretty_pat pri_equal p </> char '=' <.> (softline <.>
+      pretty_expr pri_equal e)
+
+and pretty_action (p,e) =
+  softline <.>
+    pretty_pat 0 p </> text "->" <.> (softline <.>
+      pretty_expr 0 e)
 
 and pretty_type_expression pri te =
   let rec go pri te =
     match te.te_desc with
     | Ptype_arrow(te1,te2) ->
-        paren (pri>=pri_te_arrow) (
-          go pri_te_arrow te1 </> text "->" </>
-          go (pri_te_arrow-1) te2
+        paren (pri>=pri_minusgreater) (
+          go pri_minusgreater te1 </> text "->" </>
+          go (pri_minusgreater-1) te2
         )
     | Ptype_constr(id,tes) ->
         begin match tes with
         | [] ->
             pretty_longid id
         | [te] ->
-            go pri_te_constr te <+> pretty_longid id
+            go pri_app te <+> pretty_longid id
         | te::tes ->
             lparen <.> align (
               List.fold_left (fun acc te ->
-                acc <.> char ',' <$> go pri_te_comma te
-              ) (go pri_te_comma te) tes
+                acc </> char ',' </> go pri_comma te
+              ) (go pri_comma te) tes
             ) <.> rparen <+> pretty_longid id
         end
     | Ptype_tuple tes ->
         begin match tes with
         | [] -> assert false
         | te::tes ->
-            paren (pri>=pri_te_comma) @@
+            paren (pri>=pri_comma) @@
             List.fold_left (fun acc te ->
-              acc <.> char ',' <$> go pri_te_comma te
-            ) (go pri_te_comma te) tes
+              acc <.> char ',' <$> go pri_comma te
+            ) (go pri_comma te) tes
         end
     | Ptype_var v ->
-        text v
+        char '\'' <.> text v
   in
   go pri te
 and pretty_pat pri pat =
   let rec go pri p =
     match p.p_desc with
     | Ppat_alias(p,a) ->
-        go pri_p_as p </> text "as" </> text a
+        go pri_as p </> text "as" </> text a
     | Ppat_any ->
         char '_'
     | Ppat_array ps ->
-        let con = match ps with
-          | [] -> empty
-          | e::es ->
-              List.fold_left (fun acc p ->
-                acc <//> char ';' </> go pri_p_semi p
-              ) (go pri_p_semi e) ps
-        in
-        text "[|" </> con </> text "|]"
-    | Ppat_tuple ps ->
-        begin match ps with
-        | [] -> assert false
-        | p::ps ->
-            paren (pri>=pri_p_comma) @@
-            List.fold_left (fun acc p ->
-              acc <.> char ',' <$> go pri_p_comma p
-            ) (go pri_p_comma p) ps
+        pretty_array go pri ps
+    | Ppat_constant c ->
+        pretty_constant pri c
+    | Ppat_constr(id,arg) ->
+        begin match id with
+        | Lident "()" ->
+            text "()"
+        | _ ->
+            begin match arg with
+            | None ->
+                text @@ string_of_long_ident id
+            | Some arg ->
+                text (string_of_long_ident id) </> go pri_app arg
+            end
         end
+    | Ppat_constraint(p,te) ->
+        lparen </> go pri_as p </> char ':' </>
+        pretty_type_expression pri_as te </> rparen
+    | Ppat_or(p1,p2) ->
+        go pri_bar p1 </> char '|' </>
+        go (pri_bar-1) p2
+    | Ppat_tuple ps ->
+        pretty_tuple go pri ps
     | Ppat_var v ->
         text v
   in
   go pri pat
 
 let pretty_letdef isrec pes =
-  (* TODO use lhs and *)
   let keyword =
-    if isrec then text "let" else text "let" <+> text "rec"
+    if isrec then text "let" </> text "rec" else text "let"
   in
-  keyword </>
-  sep_by (space <.> text "and" <.> softline)
-  (List.map (fun (p,e) ->
-    pretty_pat 0 p <+> char '=' </> pretty_expr 0 e
-  ) pes)
+  match pes with
+  | [] -> assert false
+  | [pe] ->
+      keyword <.> nest 2 (pretty_bind pe)
+  | pe::pes ->
+      align (keyword <.> nest 2 (pretty_bind pe) <$>
+        text "and" <.>
+        sep_by (line <.> text "and")
+        (List.map (fun pe' -> nest 2 @@ pretty_bind pe') pes))
 
 let pprint_impl width impl =
   let doc =
@@ -259,7 +312,7 @@ let pprint_impl width impl =
     | Pimpl_letdef(isrec,pes) ->
         pretty_letdef isrec pes
   in
-  print_endline @@ render width doc
+  print_endline @@ render 1.0 width doc
 
 let pprint_implementation width impls =
   List.iter (pprint_impl width) impls

@@ -111,7 +111,7 @@ rule main = parse
       STRING (get_stored_string()) }
   | "false" { FALSE }
   | "true" { TRUE }
-  | (lower|upper) (lower|upper|digit|'_')* {
+  | (lower|upper) (lower|upper|digit|'_'|'\'')* {
       let s = Lexing.lexeme lexbuf in
       try Hashtbl.find keyword_tbl s
       with Not_found -> if 'A' <= s.[0] && s.[0] <= 'Z' then UIDENT s else LIDENT s }

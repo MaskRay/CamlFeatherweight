@@ -340,6 +340,14 @@ and dump_expression d expr =
         print_endline "Sequence";
         go (d+1) e1;
         go (d+1) e2
+    | Pexpr_try(body,pes) ->
+        print_endline "Try";
+        go (d+1) body;
+        List.iter (fun (p,e) ->
+          Printf.printf "%*sWith\n" (2*d+2) "";
+          dump_pattern (d+2) p;
+          go (d+2) e
+        ) pes
     | Pexpr_tuple es ->
         print_endline "Tuple";
         List.iter (go (d+1)) es
