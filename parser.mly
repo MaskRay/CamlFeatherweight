@@ -4,10 +4,10 @@ open Syntax
 let get_loc () = Parsing.symbol_start (), Parsing.symbol_end ()
 
 let make_expr desc =
-  {e_desc=desc; e_loc=get_loc(); e_typ=no_type}
+  {e_desc=desc; e_loc=get_loc()}
 
 let make_pat desc =
-  {p_desc=desc; p_loc=get_loc(); p_typ=no_type}
+  {p_desc=desc; p_loc=get_loc()}
 
 let make_type_expression desc =
   {te_desc=desc; te_loc=get_loc()}
@@ -40,20 +40,16 @@ let make_uminus name arg =
 let make_unop op ({e_loc=l1,_} as e1) =
   let l,_ as loc = get_loc() in
   {e_desc=Pexpr_apply({e_desc=Pexpr_ident(Lident op);
-                       e_loc=(l,l1);
-                       e_typ=no_type}, [e1]);
-   e_loc=loc;
-   e_typ=no_type}
+                       e_loc=(l,l1) }, [e1]);
+   e_loc=loc}
 
 let make_binop op ({e_loc=_,m1} as e1) ({e_loc=l2,_} as e2) =
   Pexpr_apply({e_desc=Pexpr_ident(Lident op);
-               e_loc=(m1,l2);
-               e_typ=no_type}, [e1; e2]) |> make_expr
+               e_loc=(m1,l2)}, [e1; e2]) |> make_expr
 
 let make_ternop op ({e_loc=_,m1} as e1) ({e_loc=l2,_} as e2) e3 =
   Pexpr_apply({e_desc=Pexpr_ident(Lident op);
-               e_loc=(m1,l2);
-               e_typ=no_type}, [e1; e2; e3]) |> make_expr
+               e_loc=(m1,l2)}, [e1; e2; e3]) |> make_expr
 
 let make_expr_list es =
   List.fold_right (fun e acc ->
@@ -183,13 +179,8 @@ let make_apply e1 e2 =
 
 %start implementation
 %type <Syntax.impl_phrase list> implementation
-%start test_expr
-%type <Syntax.expression> test_expr
 
 %%
-
-test_expr:
-  | expr EOF { $1 }
 
 implementation:
   | structure EOF { $1 }

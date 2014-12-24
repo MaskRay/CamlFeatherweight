@@ -169,24 +169,11 @@ let rec pretty_expr pri expr =
             )
         end
     | Pexpr_let(isrec,binds,body) ->
-        let keyword =
-          if isrec then text "let" else text "let" <+> text "rec"
-        in
-        begin match binds with
-        | [] -> assert false
-        | [pe] ->
-            align (keyword <.> nest 2 (pretty_bind pe) </>
-              text "in" <$>
-              go (pri_in-1) body)
-        | pe::pes ->
-            align (keyword <.> nest 2 (pretty_bind pe) </> text "and" <.>
-              sep_by (space <.> text "and" <.> softline)
-              (List.map (fun pe' -> nest 2 @@ pretty_bind pe') pes) </>
-              text "in" <$> go (pri_in-1) body)
-        end
+        let d = pretty_let_and_binds isrec binds in
+        align (d </> text "in" <$> go 0 body)
     | Pexpr_sequence(e1,e2) ->
         paren (pri>=pri_semi) (
-          go pri_semi e1 <.> char ';' </>
+          go pri_semi e1 <.> char ';' <$>
           go (pri_semi-1) e2
         )
     | Pexpr_try(body,pes) ->
@@ -208,10 +195,35 @@ let rec pretty_expr pri expr =
   in
   go pri expr
 
+and pretty_let_and_binds isrec binds =
+  let keyword = if isrec then text "let" <+> text "rec" else text "let" in
+  match binds with
+  | [] -> assert false
+  | [p,e as pe] ->
+      let binds =
+        let rec collect ps e =
+          match e.e_desc with
+          | Pexpr_function [p',e'] ->
+              collect (p'::ps) e'
+          | _ ->
+              pretty_function (List.rev ps) e
+        in
+        collect [p] e
+      in
+      keyword <.> nest 2 binds
+  | pe::pes ->
+      keyword <.> nest 2 (pretty_bind pe) </> text "and" <.>
+        sep_by (space <.> text "and" <.> softline)
+        (List.map (fun pe' -> nest 2 @@ pretty_bind pe') pes)
+
 and pretty_bind (p,e) =
   softline <.>
     pretty_pat pri_equal p </> char '=' <.> (softline <.>
       pretty_expr pri_equal e)
+
+and pretty_function ps e =
+  softline <.> sep_by softline (List.map (pretty_pat pri_app) ps) </>
+    char '=' <.> (softline <.> pretty_expr pri_equal e)
 
 and pretty_action (p,e) =
   softline <.>
@@ -276,8 +288,8 @@ and pretty_pat pri pat =
             end
         end
     | Ppat_constraint(p,te) ->
-        lparen </> go pri_as p </> char ':' </>
-        pretty_type_expression pri_as te </> rparen
+        lparen <//> go pri_as p </> char ':' </>
+        pretty_type_expression pri_as te <//> rparen
     | Ppat_or(p1,p2) ->
         go pri_bar p1 </> char '|' </>
         go (pri_bar-1) p2
@@ -288,19 +300,8 @@ and pretty_pat pri pat =
   in
   go pri pat
 
-let pretty_letdef isrec pes =
-  let keyword =
-    if isrec then text "let" </> text "rec" else text "let"
-  in
-  match pes with
-  | [] -> assert false
-  | [pe] ->
-      keyword <.> nest 2 (pretty_bind pe)
-  | pe::pes ->
-      align (keyword <.> nest 2 (pretty_bind pe) <$>
-        text "and" <.>
-        sep_by (line <.> text "and")
-        (List.map (fun pe' -> nest 2 @@ pretty_bind pe') pes))
+let pretty_letdef isrec binds =
+  align (pretty_let_and_binds isrec binds)
 
 let pprint_impl width impl =
   let doc =

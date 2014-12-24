@@ -101,7 +101,7 @@ let add_to_division make_match divs key (row : row) =
     (key, ref (make_match row)) :: divs
 
 let pat_any =
-  { p_desc=Ppat_any; p_loc=no_location; p_typ=no_type }
+  { p_desc=Ppat_any; p_loc=no_location }
 
 let simplify_upper_left rows =
   let rec go = function

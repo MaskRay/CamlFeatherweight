@@ -131,7 +131,7 @@ and constr_kind =
   | Constr_regular
   | Constr_superfluous of int
 
-type expression = { e_desc: expression_desc; e_loc: location; mutable e_typ: typ }
+type expression = { e_desc: expression_desc; e_loc: location }
 and expression_desc =
   | Pexpr_apply of expression * expression list
   | Pexpr_array of expression list
@@ -154,7 +154,7 @@ and type_expression_desc =
   | Ptype_tuple of type_expression list
   | Ptype_constr of long_ident * type_expression list
 
-and pattern = { p_desc: pattern_desc; p_loc: location; mutable p_typ: typ }
+and pattern = { p_desc: pattern_desc; p_loc: location }
 and pattern_desc =
   | Ppat_alias of pattern * string
   | Ppat_any

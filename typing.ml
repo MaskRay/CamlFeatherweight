@@ -303,7 +303,6 @@ and typing_let env isrec pes =
   env'
 
 and typing_pat penv pat ty =
-  pat.p_typ <- ty;
   match pat.p_desc with
   | Ppat_alias(pat,a) ->
       if List.mem_assoc a penv then
