@@ -141,6 +141,7 @@ let rec pretty_expr pri expr =
         text "done"
     | Pexpr_function alts ->
         let keyword = text "function" in
+        paren (pri>0)
         begin match alts with
         | [] -> assert false
         | [pe] ->

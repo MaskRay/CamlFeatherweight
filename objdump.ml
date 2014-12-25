@@ -120,48 +120,85 @@ let iiii ic =
   let bs = Array.init 4 (fun _ -> input_byte ic |> Int32.of_int) in
   Array.fold_right (fun b acc -> Int32.(add (mul acc 256l) b)) bs 0l
 
-let iiiiiiii ic =
+let iiii' ic =
   let bs = Array.init 8 (fun _ -> input_byte ic |> Int64.of_int) in
   Array.fold_right (fun b acc -> Int64.(add (mul acc 256L) b)) bs 0L
 
 let print_value ic slot =
   let kind = input_byte ic in
   Printf.printf "  %d:\n" slot;
-  match kind with
-  | 1 ->
-      let x = iiii ic in
-      if Int32.logand x 1l = 0l then
+  if Config.word_size = 32 then
+    match kind with
+    | 1 ->
+        let x = iiii ic in
+        if Int32.logand x 1l = 0l then
+          assert false
+        else
+          Printf.printf "    int: %ld\n" Int32.(div (sub x 1l) 2l)
+    | 0 ->
+        let hd = iiii ic in
+        let tag = tag_hd hd in
+        Printf.printf "    header: %08lx\n" hd;
+        Printf.printf "    tag: %s\n" (name_tag tag);
+        if tag = double_tag then (
+          let x = Int64.float_of_bits (iiii' ic) in
+          Printf.printf "    size: %d\n" (size_hd hd);
+          Printf.printf "    float: %f\n" x
+        ) else if tag = string_tag then (
+          let size = string_size_hd hd in
+          Printf.printf "    size: %d\n" size;
+          print_string "    string: ";
+          for i = 1 to 4*(size-1) do
+            print_string @@ Char.escaped (input_char ic)
+          done;
+          let bs = Array.init 4 (fun _ -> input_byte ic) in
+          for i = 0 to 3-bs.(3) do
+            print_char @@ char_of_int bs.(i)
+          done;
+          print_char '\n'
+        ) else (
+          let size = size_hd hd in
+          Printf.printf "    size: %d\n" size;
+          for i = 1 to size do iiii ic |> ignore done
+        )
+    | _ ->
         assert false
-      else
-        Printf.printf "    int: %ld\n" Int32.(div (sub x 1l) 2l)
-  | 0 ->
-      let hd = iiii ic in
-      let tag = tag_hd hd in
-      Printf.printf "    header: %08lx\n" hd;
-      Printf.printf "    tag: %s\n" (name_tag tag);
-      if tag = double_tag then (
-        let x = Int64.float_of_bits (iiiiiiii ic) in
-        Printf.printf "    size: %d\n" (size_hd hd);
-        Printf.printf "    float: %f\n" x
-      ) else if tag = string_tag then (
-        let size = string_size_hd hd in
-        Printf.printf "    size: %d\n" size;
-        print_string "    string: ";
-        for i = 1 to 4*(size-1) do
-          print_string @@ Char.escaped (input_char ic)
-        done;
-        let bs = Array.init 4 (fun _ -> input_byte ic) in
-        for i = 0 to 3-bs.(3) do
-          print_char @@ char_of_int bs.(i)
-        done;
-        print_char '\n'
-      ) else (
-        let size = size_hd hd in
-        Printf.printf "    size: %d\n" size;
-        for i = 1 to size do iiii ic |> ignore done
-      )
-  | _ ->
-      assert false
+  else
+    match kind with
+    | 1 ->
+        let x = iiii' ic in
+        if Int64.logand x 1L = 0L then
+          assert false
+        else
+          Printf.printf "    int: %Ld\n" Int64.(div (sub x 1L) 2L)
+    | 0 ->
+        let hd = iiii' ic in
+        let tag = tag_hd' hd in
+        Printf.printf "    header: %016Lx\n" hd;
+        Printf.printf "    tag: %s\n" (name_tag tag);
+        if tag = double_tag then (
+          let x = Int64.float_of_bits (iiii' ic) in
+          Printf.printf "    size: %d\n" (size_hd' hd);
+          Printf.printf "    float: %f\n" x
+        ) else if tag = string_tag then (
+          let size = string_size_hd' hd in
+          Printf.printf "    size: %d\n" size;
+          print_string "    string: ";
+          for i = 1 to 8*(size-1) do
+            print_string @@ Char.escaped (input_char ic)
+          done;
+          let bs = Array.init 8 (fun _ -> input_byte ic) in
+          for i = 0 to 7-bs.(7) do
+            print_char @@ char_of_int bs.(i)
+          done;
+          print_char '\n'
+        ) else (
+          let size = size_hd' hd in
+          Printf.printf "    size: %d\n" size;
+          for i = 1 to size do iiii' ic |> ignore done
+        )
+    | _ ->
+        assert false
 
 let dump filename =
   let go () =

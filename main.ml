@@ -125,9 +125,11 @@ let compile_file f =
         | Unterminated_string ->
             Printf.eprintf "%aString literal not terminated\n"
             output_location l
-        end
+        end;
+        exit 1
       | Failure l ->
-        prerr_endline "Syntax error"
+          prerr_endline "Syntax error";
+          exit 1
   end;
   close_in ic;
   objfile

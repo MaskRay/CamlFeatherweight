@@ -7,8 +7,11 @@ let size_offset =
 let gcsize_offset = 8
 
 let tag_hd hd = Int32.(logand hd 255l |> to_int)
+let tag_hd' hd = Int64.(logand hd 255L |> to_int)
 let size_hd hd = Int32.(shift_right hd size_offset |> to_int)
+let size_hd' hd = Int64.(shift_right hd size_offset |> to_int)
 let string_size_hd hd = Int32.(shift_right hd (gcsize_offset+1) |> to_int)
+let string_size_hd' hd = Int64.(shift_right hd (gcsize_offset+1) |> to_int)
 
 let no_scan_tag = (1 lsl 8) - 5
 

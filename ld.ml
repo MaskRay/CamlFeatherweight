@@ -12,8 +12,6 @@ let const_tbl = Hashtbl.create 257
 let prim_tbl = Hashtbl.create 257
 let tag_tbl = Hashtbl.create 257
 
-let verbose = ref false
-
 let make_slot_for_const c =
   try
     Hashtbl.find const_tbl c
@@ -25,7 +23,7 @@ let make_slot_for_const c =
     );
     incr global_tbl_used;
     Hashtbl.replace const_tbl c s;
-    if !verbose then
+    if !Implementation.verbose then
       Printf.printf "%s: slot %d of global table\n" (show_constant c) s;
     s
 
@@ -40,7 +38,7 @@ let make_slot_for_global id =
     );
     incr global_tbl_used;
     Hashtbl.replace global_tbl id s;
-    if !verbose then
+    if !Implementation.verbose then
       Printf.printf "%s: slot %d of global table\n" (string_of_long_ident id) s;
     s
 
@@ -54,7 +52,7 @@ let make_slot_for_tag (id,stamp as tag) =
       exit 1
     );
     Hashtbl.replace tag_tbl tag s;
-    if !verbose then
+    if !Implementation.verbose then
       Printf.printf "%s,%d: slot %d of tag table\n" (string_of_long_ident id)
       stamp s;
     s
@@ -168,7 +166,7 @@ let dump_data oc =
           oooo' Int64.(add (mul (of_int x) 2L) 1L)
       | Const_float x ->
           o 0l;
-          oooo' (make_header' double_tag 2);
+          oooo' (make_header' double_tag 1);
           oooo' (Int64.bits_of_float x)
       | Const_string x ->
           let len = String.length x in
