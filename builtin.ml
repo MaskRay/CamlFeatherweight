@@ -131,6 +131,7 @@ let constr_some =
   }
 
 let generic_var = { typ_desc=Tvar (ref Tnolink); typ_level=generic }
+let generic_var2 = { typ_desc=Tvar (ref Tnolink); typ_level=generic }
 
 (* global type_desc *)
 
@@ -301,6 +302,12 @@ let () =
          }
   };
   add_global_value
+  { qualid=Ldot(Lident "Obj", "magic")
+  ; info={ v_typ=gen_type_arrow generic_var generic_var2
+         ; v_prim=Prim(1, Pidentity)
+         }
+  };
+  add_global_value
   { qualid=Lident "output_char"
   ; info={ v_typ=type_arrow type_char type_unit
          ; v_prim=Prim(1, Pccall(1, "output_char"))
@@ -310,6 +317,18 @@ let () =
   { qualid=Lident "output_int"
   ; info={ v_typ=type_arrow type_int type_unit
          ; v_prim=Prim(1, Pccall(1, "output_int"))
+         }
+  };
+  add_global_value
+  { qualid=Lident "output_float"
+  ; info={ v_typ=type_arrow type_float type_unit
+         ; v_prim=Prim(1, Pccall(1, "output_float"))
+         }
+  };
+  add_global_value
+  { qualid=Lident "output_string"
+  ; info={ v_typ=type_arrow type_string type_unit
+         ; v_prim=Prim(1, Pccall(1, "output_string"))
          }
   };
   add_global_value

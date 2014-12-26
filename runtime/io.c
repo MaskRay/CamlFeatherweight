@@ -1,5 +1,6 @@
 #include "error.h"
 #include "value.h"
+#include "str.h"
 
 ML value input_char(value _)
 {
@@ -18,8 +19,16 @@ ML value output_int(value ch)
   return Val_unit;
 }
 
-ML value print_string(value ch)
+ML value output_float(value x)
 {
-  putchar(Int_val(ch));
+  printf("%g", Double_val(x));
+  return Val_unit;
+}
+
+ML value output_string(value x)
+{
+  u32 len = string_length(x);
+  REP(i, len)
+    putchar(string_getitem(x, i));
   return Val_unit;
 }

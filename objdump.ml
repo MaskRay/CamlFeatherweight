@@ -223,7 +223,7 @@ let dump filename =
       let code_len = global_off-12 in
       Printf.printf "\nLength %d\n" code_len;
       print_code ic code_len;
-      print_endline "\nGlobal value";
+      Printf.printf "\nGlobal value: %d\n" global_num;
       for i = 0 to global_num-1 do
         print_value ic i
       done
@@ -231,7 +231,7 @@ let dump filename =
       raise Invalid
   in
   try go ()
-  with Invalid | End_of_file -> prerr_endline "Invalid obj file"
+  with Invalid | End_of_file -> prerr_endline "Invalid obj file"; exit 1
 
 let () =
   let program_desc = "camlfwod [OBJECT|EXE]\n\

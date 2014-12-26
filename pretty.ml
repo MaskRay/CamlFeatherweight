@@ -63,7 +63,7 @@ let pretty_tuple pretty pri xs =
 
 let pretty_array pretty pri xs =
   match xs with
-  | [] -> assert false
+  | [] -> text "[||]"
   | x::xs ->
       let con =
         List.fold_left (fun acc x ->
@@ -304,15 +304,23 @@ and pretty_pat pri pat =
 let pretty_letdef isrec binds =
   align (pretty_let_and_binds isrec binds)
 
+let pretty_typedef decl =
+  text "type"
+
+let pretty_excdef decl =
+  text "exception"
+
 let pprint_impl width impl =
   let doc =
     match impl.im_desc with
     | Pimpl_expr e ->
         pretty_expr 0 e
     | Pimpl_typedef decl ->
-        empty
+        pretty_typedef decl
     | Pimpl_letdef(isrec,pes) ->
         pretty_letdef isrec pes
+    | Pimpl_excdef decl ->
+        pretty_excdef decl
   in
   print_endline @@ render 1.0 width doc
 

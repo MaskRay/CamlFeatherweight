@@ -24,6 +24,8 @@ c_primitive cprims[] = {
   input_char,
   output_char,
   output_int,
+  output_float,
+  output_string,
 };
 
 const char *name_of_cprims[] = {
@@ -37,4 +39,6 @@ const char *name_of_cprims[] = {
   "input_char",
   "output_char",
   "output_int",
+  "output_float",
+  "output_string",
 };
