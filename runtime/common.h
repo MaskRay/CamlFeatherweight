@@ -5,7 +5,6 @@
 #ifndef JS
 # include <getopt.h>
 #endif
-#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>

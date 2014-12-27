@@ -25,7 +25,6 @@ hd_t first_atoms[256];
 value *arg_stack_low, *arg_stack_high;
 value *ret_stack_low, *ret_stack_high;
 value tail = 0;
-jmp_buf external_raise_buf;
 
 static inline void modify(value *x, value y)
 {
@@ -261,7 +260,15 @@ void gc(value acc, value env, value *asp, value *rsp, struct trap_frame *tp)
   }
 }
 
-value interpret(code_t code)
+#define FAILED_TO_OPEN -1
+#define BAD_MAGIC -2
+#define TRUNCATED_FILE -3
+#define INVALID_EXE -4
+#define SYSERROR -5
+
+#define UNCAUGHT_EXCEPTION -6
+
+int interpret(code_t code)
 {
   value acc = Val_int(0), env = Atom(0),
         *asp = arg_stack_high, *rsp = ret_stack_high;
@@ -280,9 +287,9 @@ value interpret(code_t code)
 //#define Push_trap_frame tsp--
 //#define Pop_trap_frame tsp++
 
-#ifdef DEBUG
   uvalue tick = 0;
-#endif
+
+#define GC tick++; if (tick % (1 << 18) == 0) gc(acc, env, asp, rsp, tp)
 
 #ifdef DIRECT_JUMP
 # define Inst(name) lbl_##name
@@ -296,12 +303,8 @@ value interpret(code_t code)
 # define Next break
   for(;;) {
 # ifdef DEBUG
-    if (trace) {
-      tick++;
+    if (trace)
       disasm(pc);
-      if (tick % (1 << 22) == 0)
-        gc(acc, env, asp, rsp, tp);
-    }
 # endif
     switch (*pc++) {
 #endif
@@ -541,6 +544,7 @@ value interpret(code_t code)
       Next;
     }
     Inst(MAKEBLOCK): {
+      GC;
       pc = (code_t)(((value)pc+sizeof(value)-1) & -sizeof(value));
       value hdr = *(value*)pc;
       pc += sizeof(value);
@@ -640,7 +644,7 @@ value interpret(code_t code)
     Inst(RAISE):
 raise:
       if (! tp)
-        longjmp(external_raise_buf, 1);
+        return UNCAUGHT_EXCEPTION;
       rsp = (value *)tp;
       pc = trapsp->pc;
       env = alloc_block(trapsp->env, 1);
@@ -690,7 +694,7 @@ raise:
       acc = 1 | (uvalue)(acc-1u) >> Int_val(*asp++);
       Next;
     Inst(STOP):
-      return acc;
+      return 0;
     Inst(STRINGLENGTH):
       acc = Val_int(string_length(acc));
       Next;
@@ -713,6 +717,7 @@ raise:
       Next;
     Inst(TERMAPPLY):
 termapply:
+      GC;
       pc = Code_val(acc);
       env = alloc_block(Env_val(acc), 1);
       Field(env, 0) = *asp++;
@@ -745,12 +750,6 @@ static void init_stacks(void)
   ret_stack_low = malloc(Arg_stack_size);
   ret_stack_high = ret_stack_low + Ret_stack_size/sizeof(struct return_frame);
 }
-
-#define FAILED_TO_OPEN -1
-#define BAD_MAGIC -2
-#define TRUNCATED_FILE -3
-#define INVALID_EXE -4
-#define SYSERROR -5
 
 int run(const char *filename)
 {
@@ -808,10 +807,7 @@ int run(const char *filename)
     return SYSERROR;
   if (read(fd, code, code_len) != code_len)
     return TRUNCATED_FILE;
-  value r = interpret(code);
-  if (trace)
-    fprintf(stderr, "+ acc=%d\n", r);
-  return 0;
+  return interpret(code);
 }
 
 static void print_help(const char *argv0)
@@ -847,27 +843,31 @@ int main(int argc, char *argv[])
 
   init_atoms();
   init_stacks();
-  if (! setjmp(external_raise_buf)) {
-    int r = run(argv[optind]);
-    if (r < 0)
-      switch (r) {
-      case FAILED_TO_OPEN:
-        fatal_error_fmt("Failed to open \"%s\"\n", strerror(errno));
-        break;
-      case TRUNCATED_FILE:
-        fatal_error_fmt("\"%s\" seems to be truncated\n", argv[optind]);
-        break;
-      case INVALID_EXE:
-        fatal_error_fmt("\"%s\" is not a bytecode executable file\n", argv[optind]);
-        break;
-      case BAD_MAGIC:
-        fatal_error_fmt("\"%s\" is not a bytecode executable file: missing magic \"%s\"\n", argv[optind], MAGIC);
-        break;
-      case SYSERROR:
-        fatal_error(strerror(errno));
-        break;
-      }
-  } else
+  switch (run(argv[optind])) {
+  case 0:
+#ifdef JS
+    // hack: emscripten does not flush stdout & stderr if noExitRuntime: true
+    putchar('\n');
+#endif
+    break;
+  case FAILED_TO_OPEN:
+    fatal_error_fmt("Failed to open \"%s\"\n", strerror(errno));
+    break;
+  case TRUNCATED_FILE:
+    fatal_error_fmt("\"%s\" seems to be truncated\n", argv[optind]);
+    break;
+  case INVALID_EXE:
+    fatal_error_fmt("\"%s\" is not a bytecode executable file\n", argv[optind]);
+    break;
+  case BAD_MAGIC:
+    fatal_error_fmt("\"%s\" is not a bytecode executable file: missing magic \"%s\"\n", argv[optind], MAGIC);
+    break;
+  case SYSERROR:
+    fatal_error(strerror(errno));
+    break;
+  case UNCAUGHT_EXCEPTION:
     fatal_error("Fatal error: uncaught exception");
+    break;
+  }
   return 0;
 }
