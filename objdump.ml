@@ -19,7 +19,9 @@ let init_jumptbl () =
       Printf.printf "%d" (input_byte ic)
     else
       Printf.printf "%s" name_of_prims.(input_byte ic) in
-  let i16 ic _ =
+  let i16 ic pos =
+    if pos mod 2 <> 0 then
+      input_byte ic |> ignore;
     let b0 = input_byte ic in
     let b1 = input_byte ic in
     let n = b0 + b1 lsl 8 in
@@ -29,13 +31,22 @@ let init_jumptbl () =
     in
     Printf.printf "%d" n
   in
-  let u16 ic _ =
+  let u16 ic pos =
+    if pos mod 2 <> 0 then
+      input_byte ic |> ignore;
     let b0 = input_byte ic in
     let b1 = input_byte ic in
     let n = b0 + b1 lsl 8 in
     Printf.printf "[%d]" n
   in
   let rel16 ic pos =
+    let pos =
+      if pos mod 2 <> 0 then (
+        input_byte ic |> ignore;
+        pos+1
+      ) else
+        pos
+    in
     let b0 = input_byte ic in
     let b1 = input_byte ic in
     let n = b0 + b1 lsl 8 in
@@ -51,10 +62,25 @@ let init_jumptbl () =
       print_string "init"
   in
   let makeblock ic pos =
+    if pos mod Config.sizeof_word <> 0 then
+      for i = pos mod Config.sizeof_word to Config.sizeof_word-1 do
+        input_byte ic |> ignore
+      done;
     Printf.printf "0x%08lx" (input_bin_int32 ic)
+  in
+  let branchifneqtag ic pos =
+    Printf.printf "%d " (input_byte ic);
+    rel16 ic (pos+1)
   in
   let switch ic pos =
     let nalts = input_byte ic in
+    let pos =
+      if (pos+1) mod 2 <> 0 then (
+        input_byte ic |> ignore;
+        pos+2
+      ) else
+        pos+1
+    in
     print_char '[';
     for i = 1 to nalts do
       let b0 = input_byte ic in
@@ -66,7 +92,7 @@ let init_jumptbl () =
       in
       if i > 1 then
         print_string "; ";
-      Printf.printf "%04x" (pos+1+n);
+      Printf.printf "%04x" (pos+n);
     done;
     print_char ']'
   in
@@ -94,6 +120,7 @@ let init_jumptbl () =
   jumptbl.(opGETGLOBAL) <- u16;
   jumptbl.(opMAKEARRAY) <- makearray;
   jumptbl.(opMAKEBLOCK) <- makeblock;
+  jumptbl.(opBRANCHIFNEQTAG) <- branchifneqtag;
   jumptbl.(opPUSHTRAP) <- rel16;
   jumptbl.(opSETFIELD) <- u8;
   jumptbl.(opSETGLOBAL) <- u16;

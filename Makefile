@@ -1,9 +1,14 @@
-.PHONY: force
+.PHONY: force test
 
 CFLAGS += -std=gnu11 -g3
+CFLAGS += -m32
+
 SRC := $(wildcard *.ml) lexer.mll parser.mly opcode.ml cprim.ml
 C := $(addprefix runtime/,main.c compare.c error.c instruct.c io.c main.c prim.c str.c)
 HD := $(addprefix runtime/,common.h error.h instruct.h io.h jumptable.h prim.h str.h value.h)
+CYAN := '\e[1;36m'
+GREEN := '\e[1;32m'
+RST := '\e[0m'
 
 all: camlfwc camlfwod camlfwrun
 
@@ -31,3 +36,16 @@ opcode.ml: runtime/instruct.h
 
 cprim.ml: runtime/prim.c
 	awk '/cprims/{a=1} /\w+,/&&a==1{sub(",","");s[n++]=$$1} END{printf "let name_of_prims=[|";for(i=0;i<n;i++)printf "\""s[i]"\";";print"|]"}' $< > $@
+
+test-%: force
+	@echo -e $(CYAN)test $*$(RST)
+	@t=$$(mktemp); ./camlfwc tests/$*.ml -o $$t && ./camlfwrun $$t && echo; r=$$?; $(RM) tests/$*.zo $$t; exit $$r
+
+#test: $(addprefix test-,$(patsubst tests/%.ml,%,$(wildcard tests/*.ml)))
+test:
+	@all=0; fail=0; \
+	for t in $(patsubst tests/%.ml,%,$(wildcard tests/*.ml)); do \
+		$(MAKE) --no-print-directory test-$$t || ((fail++)); \
+		((all++)); \
+	done; \
+	echo -e $(GREEN)$$fail/$$all cases failed$(RST)

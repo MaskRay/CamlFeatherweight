@@ -65,6 +65,7 @@ const char *name_of_instructions[] = {
   "NEQ",
   "NEQFLOAT",
   "NEQSTRING",
+  "NOP",
   "NOT",
   "ORINT",
   "POP",

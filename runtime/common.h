@@ -1,9 +1,10 @@
 #pragma once
 
-#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
-#include <getopt.h>
+#ifndef JS
+# include <getopt.h>
+#endif
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>

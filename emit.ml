@@ -98,6 +98,7 @@ let define_label l =
       ) ls;
       out_pos := curr_pos
 
+(* orig must be aligned by 2 *)
 let out_label_with_orig orig l =
   if l >= Array.length !label_tbl then
     extend_label_tbl l;
@@ -108,7 +109,10 @@ let out_label_with_orig orig l =
       (!label_tbl).(l) <- Label_undefined ((!out_pos,orig)::ls);
       oo 0
 
-let out_label l = out_label_with_orig !out_pos l
+let out_label l =
+  if !out_pos mod 2 <> 0 then
+    o 0;
+  out_label_with_orig !out_pos l
 
 (* relocation *)
 
@@ -139,14 +143,20 @@ let out_tag = function
       slot_for_tag (id,stamp)
 
 let slot_for_const c =
+  if !out_pos mod 2 <> 0 then
+    o 0;
   enter_reloc (Reloc_const c);
   oo 0
 
 let slot_for_getglobal id =
+  if !out_pos mod 2 <> 0 then
+    o 0;
   enter_reloc (Reloc_getglobal id);
   oo 0
 
 let slot_for_setglobal id =
+  if !out_pos mod 2 <> 0 then
+    o 0;
   enter_reloc (Reloc_setglobal id);
   oo 0
 
@@ -165,11 +175,19 @@ let rec emit code =
   in
   let out_header tag n =
     if Config.word_size = 32 then (
+      if !out_pos mod 4 <> 0 then
+        for i = !out_pos mod 4 to 3 do
+          o 0;
+        done;
       out_tag tag; (* [0,8) *)
       o 0; (* [8,16) *)
       o (n lsl 4); (* [16,24) *)
       o (n lsr 4) (* [24,32) *)
     ) else (
+      if !out_pos mod 8 <> 0 then
+        for i = !out_pos mod 8 to 7 do
+          o 0;
+        done;
       out_tag tag; (* [0,8) *)
       o 0; (* [8,16) *)
       o 0; (* [16,24) *)
@@ -281,6 +299,8 @@ let rec emit code =
     | Kswitch ls ->
         o opSWITCH;
         o (Array.length ls);
+        if !out_pos mod 2 <> 0 then
+          o 0;
         let orig = !out_pos in
         Array.iter (out_label_with_orig orig) ls
     | Ktermapply -> o opTERMAPPLY
@@ -346,6 +366,10 @@ let emit_phrase oc (init,fcts) =
     emit fcts;
     emit [Klabel 0]
   );
+  if !out_pos mod Config.sizeof_word <> 0 then
+    for i = !out_pos mod Config.sizeof_word to Config.sizeof_word-1 do
+      o opNOP;
+    done;
   output oc !out_buf 0 !out_pos;
   phr_idx := {
     cph_pos = !abs_out_pos;

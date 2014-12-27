@@ -4,7 +4,6 @@
 #include "prim.h"
 #include "error.h"
 #include "str.h"
-#include "gc.h"
 
 #define DEBUG
 
@@ -81,10 +80,12 @@ void disasm(code_t pc)
     break;
   case GETGLOBAL:
   case SETGLOBAL:
+    if ((value)pc & 1) pc++;
     printf("[%d]", pu16(pc));
     pc += 2;
     break;
   case CONSTINT16:
+    if ((value)pc & 1) pc++;
     printf("[%d]", pi16(pc));
     pc += 2;
     break;
@@ -96,6 +97,13 @@ void disasm(code_t pc)
   case BRANCHIFLE:
   case BRANCHIFLT:
   case CUR:
+    if ((value)pc & 1) pc++;
+    printf("0x%08x", pc+pi16(pc));
+    pc += 2;
+    break;
+  case BRANCHIFNEQTAG:
+    printf("%d ", *pc++);
+    if ((value)pc & 1) pc++;
     printf("0x%08x", pc+pi16(pc));
     pc += 2;
     break;
@@ -273,7 +281,7 @@ value interpret(code_t code)
 //#define Pop_trap_frame tsp++
 
 #ifdef DEBUG
-  u64 tick = 0;
+  uvalue tick = 0;
 #endif
 
 #ifdef DIRECT_JUMP
@@ -291,6 +299,7 @@ value interpret(code_t code)
     if (trace) {
       tick++;
       disasm(pc);
+      if (tick % (1 << 22) == 0)
         gc(acc, env, asp, rsp, tp);
     }
 # endif
@@ -329,61 +338,36 @@ value interpret(code_t code)
       acc = Atom(*pc++);
       Next;
     Inst(BRANCH):
-      pc += pi16(pc);
+      Br16;
       Next;
     Inst(BRANCHIF):
-      if (Tag_val(acc))
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(Tag_val(acc));
       Next;
     Inst(BRANCHIFEQ):
-      if (acc == *asp++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(acc == *asp++);
       Next;
     Inst(BRANCHIFGE):
-      if (acc >= *asp++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(acc >= *asp++);
       Next;
     Inst(BRANCHIFGT):
-      if (acc > *asp++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(acc > *asp++);
       Next;
     Inst(BRANCHIFLE):
-      if (acc <= *asp++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(acc <= *asp++);
       Next;
     Inst(BRANCHIFLT):
-      if (acc < *asp++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(acc < *asp++);
       Next;
     Inst(BRANCHIFNEQ):
-      if (acc != *asp++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(acc != *asp++);
       Next;
-    Inst(BRANCHIFNEQTAG):
-      if (Tag_val(acc) != *pc++)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+    Inst(BRANCHIFNEQTAG): {
+      u8 n = *pc++;
+      Br16if(Tag_val(acc) != n);
       Next;
+    }
     Inst(BRANCHIFNOT):
-      if (! Tag_val(acc))
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(! Tag_val(acc));
       Next;
     Inst(CCALL1):
       acc = cprims[pu8(pc)](acc);
@@ -409,11 +393,13 @@ value interpret(code_t code)
       pc += sizeof(i8);
       Next;
     Inst(CONSTINT16):
+      if ((value)pc & 1) pc++;
       acc = pi16(pc)*2+1;
       pc += sizeof(i16);
       Next;
     Inst(CUR):
       acc = alloc(Closure_tag, Closure_wosize);
+      if ((value)pc & 1) pc++;
       Code_val(acc) = pc+pi16(pc);
       Env_val(acc) = env;
       pc += sizeof(i16);
@@ -476,6 +462,7 @@ value interpret(code_t code)
       acc = Field(acc, *pc++);
       Next;
     Inst(GETGLOBAL):
+      if ((value)pc & 1) pc++;
       acc = Field(global_value, pu16(pc));
       pc += sizeof(u16);
       Next;
@@ -554,6 +541,7 @@ value interpret(code_t code)
       Next;
     }
     Inst(MAKEBLOCK): {
+      pc = (code_t)(((value)pc+sizeof(value)-1) & -sizeof(value));
       value hdr = *(value*)pc;
       pc += sizeof(value);
       uint32_t size = Wosize_hd(hdr);
@@ -610,6 +598,8 @@ value interpret(code_t code)
     Inst(NEQSTRING):
       acc = Atom(string_compare(acc, *asp++) == 0);
       Next;
+    Inst(NOP):
+      Next;
     Inst(NOT):
       acc = Atom(Tag_val(acc) == 0);
       Next;
@@ -622,10 +612,7 @@ value interpret(code_t code)
     Inst(POPBRANCHIFNOT):
       tmp = acc;
       acc = *asp++;
-      if (Tag_val(tmp) == 0)
-        pc += pi16(pc);
-      else
-        pc += sizeof(i16);
+      Br16if(Tag_val(tmp) == 0);
       Next;
     Inst(POPTRAP):
       rsp = (value *)tp;
@@ -642,6 +629,7 @@ value interpret(code_t code)
       Next;
     Inst(PUSHTRAP):
       Push_trap_frame;
+      if ((value)pc & 1) pc++;
       trapsp->pc = pc+pi16(pc);
       pc += sizeof(i16);
       trapsp->env = env;
@@ -686,6 +674,7 @@ raise:
       Next;
     }
     Inst(SETGLOBAL):
+      if ((value)pc & 1) pc++;
       modify(&Field(global_value, pu16(pc)), acc);
       pc += sizeof(u16);
       Next;
@@ -715,7 +704,8 @@ raise:
       Next;
     }
     Inst(SWITCH):
-      pc++;
+      pc++; // size of jumptable
+      if ((value)pc & 1) pc++;
       pc += pi16(pc+Tag_val(acc)*2);
       Next;
     Inst(TAGOF):
@@ -770,7 +760,7 @@ int run(const char *filename)
   int t;
   if (fd < 0)
     return FAILED_TO_OPEN;
-  if (read(fd, buf, 4) != 4 || memcmp(buf, MAGIC, 4))
+  if (read(fd, buf, 4) != 4 || ! (buf[0]==MAGIC[0] && buf[1]==MAGIC[1] && buf[2]==MAGIC[2] && buf[3]==MAGIC[3]))
     return BAD_MAGIC;
   u32 global_value_off, global_value_num, size;
   if (read(fd, &global_value_off, 4) != 4 || read(fd, &global_value_num, 4) != 4)
@@ -826,20 +816,17 @@ int run(const char *filename)
 
 static void print_help(const char *argv0)
 {
-  fprintf(stderr, "Usage: %s\n", basename(argv0));
+  fprintf(stderr, "Usage: %s\n", argv0);
 }
 
 int main(int argc, char *argv[])
 {
-  for(;;) {
-    static struct option long_options[] = {
-      {"trace",   no_argument, 0, 't'},
-      {"verbose", no_argument, 0, 'v'},
-      {0,         0,           0,  0 },
-    };
-    int opt, c = getopt_long(argc, argv, "htv", long_options, &opt);
-    if (c == -1) break;
-    switch (c) {
+#ifdef JS
+  int optind = 1;
+#else
+  int opt;
+  while ((opt = getopt(argc, argv, "htv")) != -1) {
+    switch (opt) {
     case 'h':
       print_help(argv[0]);
       return 0;
@@ -856,6 +843,7 @@ int main(int argc, char *argv[])
   }
   if (optind == argc)
     fatal_error("No bytecode file specified.");
+#endif
 
   init_atoms();
   init_stacks();

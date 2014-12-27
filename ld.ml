@@ -146,7 +146,7 @@ let dump_data oc =
             o (Int32.of_int pad)
           done
     ) !entries;
-    for i = !last+1 to Hashtbl.length global_tbl - 1 do
+    for i = !last+1 to !global_tbl_used - 1 do
       o 1l;
       oooo 1l
     done
