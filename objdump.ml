@@ -180,7 +180,7 @@ let print_value ic slot =
           done;
           let bs = Array.init 4 (fun _ -> input_byte ic) in
           for i = 0 to 3-bs.(3) do
-            print_char @@ char_of_int bs.(i)
+            print_string @@ Char.escaped @@ char_of_int bs.(i)
           done;
           print_char '\n'
         ) else (
