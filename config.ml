@@ -1,4 +1,4 @@
-let word_size = 32
+let word_size = 64
 
 let sizeof_word = word_size / 8
 

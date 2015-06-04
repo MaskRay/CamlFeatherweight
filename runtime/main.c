@@ -145,7 +145,7 @@ bool touch(value x)
   }
 }
 
-u32 get_cur_field(value x)
+value get_cur_field(value x)
 {
   switch (Tag_val(x)) {
   case Closure_tag:
@@ -223,7 +223,6 @@ void schorr_waite(value x)
 
 void gc(value acc, value env, value *asp, value *rsp, struct trap_frame *tp)
 {
-  return;
   for (value *p = asp; p < arg_stack_high; p++)
     schorr_waite(*p);
   for (value *p = rsp; p < ret_stack_high; ) {
@@ -289,7 +288,7 @@ int interpret(code_t code)
 
   uvalue tick = 0;
 
-#define GC tick++; if (tick % (1 << 18) == 0) gc(acc, env, asp, rsp, tp)
+#define GC tick++; if (tick % (1 << 13) == 0) gc(acc, env, asp, rsp, tp)
 
 #ifdef DIRECT_JUMP
 # define Inst(name) lbl_##name
